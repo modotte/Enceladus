@@ -22,8 +22,9 @@ type Server() =
             this.DisplaySecurityLevel(sslStream)
             sslStream.ReadTimeout <- timeoutDuration
             sslStream.WriteTimeout <- timeoutDuration
-            let message = Encoding.UTF8.GetBytes("20 text/plain \r\n")
-            sslStream.Write(message)
+            
+            let headerResponse = Encoding.UTF8.GetBytes("20 text/plain \r\n")
+            sslStream.Write(headerResponse)
             
             sslStream.Close()
             client.Close()
