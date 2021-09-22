@@ -26,7 +26,6 @@ type Server() =
             printfn $"Hash: {stream.HashAlgorithm} strength {stream.HashStrength}"
             printfn $"Key exchange: {stream.KeyExchangeAlgorithm} strength {stream.KeyExchangeStrength}"
             printfn $"Protocol: {stream.SslProtocol}"
-            
      
     member this.ReadClientRequest(stream: SslStream) =
         let MAX_BUFFER_LENGTH = 1048
@@ -44,10 +43,11 @@ type Server() =
                 bytes <- 0
             else
                 ()
-                
-        messageData.ToString()
-                
             
+        match Uri(messageData.ToString()).IsWellFormedOriginalString() with
+        | true -> Some(messageData.ToString())
+        | false -> None
+                
     member this.HandleClient(client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
         try
@@ -59,13 +59,18 @@ type Server() =
             
             printfn "Waiting for request URL.."
             let messageData = this.ReadClientRequest(sslStream)
-            printfn $"Received: {messageData}"
             
-            let headerResponse = Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n")
-            sslStream.Write(headerResponse)
-            
-            sslStream.Write(Encoding.UTF8.GetBytes("Hello! 你好 \r\n"))
-            sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
+            match messageData with
+            | Some message ->
+                sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n"))
+                
+                sslStream.Write(Encoding.UTF8.GetBytes($"Received request: {message}\r\n"))
+                sslStream.Write(Encoding.UTF8.GetBytes("Hello! 你好 \r\n"))
+                sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
+                
+            | _ ->
+                sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} text/gemini; charset=utf8 \r\n"))
+                sslStream.Write(Encoding.UTF8.GetBytes($"Error: {getStatusCode PermanentFailure}. There was a problem occured. Please try again."))
             
             sslStream.Close()
             client.Close()
