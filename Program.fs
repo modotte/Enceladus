@@ -9,6 +9,13 @@ type StatusCode =
     | Input | Success | Redirect
     | TemporaryFailure | PermanentFailure | ClientCertificateRequired
 
+let getStatusCode = function
+    | Input -> 10
+    | Success -> 20
+    | Redirect -> 30
+    | TemporaryFailure -> 40
+    | PermanentFailure -> 50
+    | ClientCertificateRequired -> 60
 
 type Server() =
     let port = 1965
@@ -29,10 +36,10 @@ type Server() =
             sslStream.ReadTimeout <- timeoutDuration
             sslStream.WriteTimeout <- timeoutDuration
             
-            let headerResponse = Encoding.UTF8.GetBytes("20 text/gemini; charset=utf8 \r\n")
+            let headerResponse = Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n")
             sslStream.Write(headerResponse)
             
-            sslStream.Write(Encoding.UTF8.GetBytes("hello! 你好 \r\n"))
+            sslStream.Write(Encoding.UTF8.GetBytes("Hello! 你好 \r\n"))
             sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
             
             sslStream.Close()
