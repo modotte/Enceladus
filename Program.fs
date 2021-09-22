@@ -57,7 +57,7 @@ type Server() =
             sslStream.ReadTimeout <- timeoutDuration
             sslStream.WriteTimeout <- timeoutDuration
             
-            printfn "Waiting for client message.."
+            printfn "Waiting for request URL.."
             let messageData = this.ReadClientRequest(sslStream)
             printfn $"Received: {messageData}"
             
