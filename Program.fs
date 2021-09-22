@@ -23,8 +23,11 @@ type Server() =
             sslStream.ReadTimeout <- timeoutDuration
             sslStream.WriteTimeout <- timeoutDuration
             
-            let headerResponse = Encoding.UTF8.GetBytes("20 text/plain \r\n")
+            let headerResponse = Encoding.UTF8.GetBytes("20 text/gemini \r\n")
             sslStream.Write(headerResponse)
+            
+            sslStream.Write(Encoding.UTF8.GetBytes("hello! \r\n"))
+            sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
             
             sslStream.Close()
             client.Close()
