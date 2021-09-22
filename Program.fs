@@ -27,6 +27,27 @@ type Server() =
             printfn $"Key exchange: {stream.KeyExchangeAlgorithm} strength {stream.KeyExchangeStrength}"
             printfn $"Protocol: {stream.SslProtocol}"
             
+     
+    member this.ReadClientRequest(stream: SslStream) =
+        let MAX_BUFFER_LENGTH = 1048
+        let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
+        let messageData = StringBuilder()
+        let mutable bytes = -1
+        
+        while bytes <> 0 do
+            bytes <- stream.Read(buffer, 0, buffer.Length)
+            let decoder = Encoding.UTF8.GetDecoder()
+            let mutable chars = Array.zeroCreate(decoder.GetCharCount(buffer, 0, bytes))
+            decoder.GetChars(buffer, 0, bytes, chars, 0) |> ignore
+            messageData.Append(chars) |> ignore
+            if messageData.ToString().IndexOf("\r\n") <> -1 then
+                bytes <- 0
+            else
+                ()
+                
+        messageData.ToString()
+                
+            
     member this.HandleClient(client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
         try
@@ -36,6 +57,10 @@ type Server() =
             sslStream.ReadTimeout <- timeoutDuration
             sslStream.WriteTimeout <- timeoutDuration
             
+            printfn "Waiting for client message.."
+            let messageData = this.ReadClientRequest(sslStream)
+            printfn $"Received: {messageData}"
+            
             let headerResponse = Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n")
             sslStream.Write(headerResponse)
             
@@ -44,6 +69,8 @@ type Server() =
             
             sslStream.Close()
             client.Close()
+            printfn "Closed old connections"
+            
         finally
         sslStream.Close()
         client.Close()
