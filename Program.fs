@@ -21,7 +21,6 @@ let getStatusCode = function
 
 type Server() =
     let port = 1965
-    let mutable serverCertificate = null
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
      
     member this.ReadClientRequest(stream: SslStream) =
@@ -45,7 +44,7 @@ type Server() =
         | true -> Some(messageData.ToString())
         | false -> None
                 
-    member this.HandleClient(client: TcpClient) =
+    member this.HandleClient(client: TcpClient, serverCertificate: X509Certificate2) =
         let sslStream = new SslStream(client.GetStream(), false)
         try
             try
@@ -85,14 +84,13 @@ type Server() =
         
         logger.Information("Closed last client connection..")
             
-    member this.RunServer(certificate: string, certificatePassword: string) =
-        serverCertificate <- new X509Certificate2(certificate, certificatePassword)
+    member this.RunServer(serverCertificate: X509Certificate2) =
         let listener = TcpListener(IPAddress.Any, port)
         listener.Start()
         while true do
             logger.Information($"Waiting for a client to connect at port {port}")
             let client = listener.AcceptTcpClient()
-            this.HandleClient(client)
+            this.HandleClient(client, serverCertificate)
             
     member this.DisplayUsage() =
         printfn "enceladus <CERT_FILE.pfx> <PASSWORD>"
@@ -107,8 +105,10 @@ let main argv =
         server.DisplayUsage()
         Environment.Exit(-1)
 
-    let certificate = argv.[0]
+    let certificateFile = argv.[0]
     let certificatePassword = argv.[1]
-    server.RunServer(certificate, certificatePassword)
+    let serverCertificate = new X509Certificate2(certificateFile, certificatePassword)
+    
+    server.RunServer(serverCertificate)
     
     0
