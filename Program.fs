@@ -1,5 +1,6 @@
 open System
 open System.Net.Security
+open System.Security.Authentication
 open System.Security.Cryptography.X509Certificates
 open System.Net
 open System.Net.Sockets
@@ -51,31 +52,41 @@ type Server() =
     member this.HandleClient(client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
         try
-            let timeoutDuration = 5000
-            sslStream.AuthenticateAsServer(serverCertificate, false, true)
-            this.DisplaySecurityLevel(sslStream)
-            sslStream.ReadTimeout <- timeoutDuration
-            sslStream.WriteTimeout <- timeoutDuration
-            
-            printfn "Waiting for request URL.."
-            let messageData = this.ReadClientRequest(sslStream)
-            
-            match messageData with
-            | Some message ->
-                sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n"))
+            try
+                let timeoutDuration = 5000
+                sslStream.AuthenticateAsServer(serverCertificate, false, true)
+                this.DisplaySecurityLevel(sslStream)
+                sslStream.ReadTimeout <- timeoutDuration
+                sslStream.WriteTimeout <- timeoutDuration
                 
-                sslStream.Write(Encoding.UTF8.GetBytes($"Received request: {message}\r\n"))
-                sslStream.Write(Encoding.UTF8.GetBytes("Hello! 你好 \r\n"))
-                sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
+                printfn "Waiting for new request.."
+                let messageData = this.ReadClientRequest(sslStream)
                 
-            | _ ->
-                sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} text/gemini; charset=utf8 \r\n"))
-                sslStream.Write(Encoding.UTF8.GetBytes($"Error: {getStatusCode PermanentFailure}. There was a problem occured. Please try again."))
-            
-            sslStream.Close()
-            client.Close()
-            printfn "Closed old connections"
-            
+                match messageData with
+                | Some message ->
+                    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n"))
+                    
+                    sslStream.Write(Encoding.UTF8.GetBytes($"Received request: {message}\r\n"))
+                    sslStream.Write(Encoding.UTF8.GetBytes("Hello! 你好 \r\n"))
+                    sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
+                    
+                | _ ->
+                    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} text/gemini; charset=utf8 \r\n"))
+                    sslStream.Write(Encoding.UTF8.GetBytes($"Error: {getStatusCode PermanentFailure}. There was a problem occured. Please try again. \r\n"))
+                    
+                printfn "A client connected and requested some resources.."
+                sslStream.Close()
+                client.Close()
+                printfn "Closed old connections"
+                
+            with
+            | :? AuthenticationException as ex ->
+                printfn $"Exception: {ex.Message}"
+                if ex.InnerException <> null then
+                    printfn $"Inner exception: {ex.InnerException.Message}"
+                
+                sslStream.Close()
+                client.Close()
         finally
         sslStream.Close()
         client.Close()
