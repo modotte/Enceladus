@@ -107,8 +107,7 @@ let main argv =
 
     let certificateFile = argv.[0]
     let certificatePassword = argv.[1]
-    let serverCertificate = new X509Certificate2(certificateFile, certificatePassword)
     
-    server.RunServer(serverCertificate)
+    server.RunServer(new X509Certificate2(certificateFile, certificatePassword))
     
     0
