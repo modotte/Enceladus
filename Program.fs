@@ -21,12 +21,6 @@ let getStatusCode = function
 type Server() =
     let port = 1965
     let mutable serverCertificate = null
-    
-    member this.DisplaySecurityLevel(stream: SslStream) =
-            printfn $"Cipher: {stream.CipherAlgorithm} strength {stream.CipherStrength}"
-            printfn $"Hash: {stream.HashAlgorithm} strength {stream.HashStrength}"
-            printfn $"Key exchange: {stream.KeyExchangeAlgorithm} strength {stream.KeyExchangeStrength}"
-            printfn $"Protocol: {stream.SslProtocol}"
      
     member this.ReadClientRequest(stream: SslStream) =
         let MAX_BUFFER_LENGTH = 1048
@@ -55,11 +49,10 @@ type Server() =
             try
                 let timeoutDuration = 5000
                 sslStream.AuthenticateAsServer(serverCertificate, false, true)
-                this.DisplaySecurityLevel(sslStream)
                 sslStream.ReadTimeout <- timeoutDuration
                 sslStream.WriteTimeout <- timeoutDuration
                 
-                printfn "Waiting for new request.."
+                printfn "A client connected.."
                 let messageData = this.ReadClientRequest(sslStream)
                 
                 match messageData with
@@ -74,10 +67,7 @@ type Server() =
                     sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} text/gemini; charset=utf8 \r\n"))
                     sslStream.Write(Encoding.UTF8.GetBytes($"Error: {getStatusCode PermanentFailure}. There was a problem occured. Please try again. \r\n"))
                     
-                printfn "A client connected and requested some resources.."
-                sslStream.Close()
-                client.Close()
-                printfn "Closed old connections"
+                printfn "A client requested some resources.."
                 
             with
             | :? AuthenticationException as ex ->
@@ -90,6 +80,8 @@ type Server() =
         finally
         sslStream.Close()
         client.Close()
+        
+        printfn "Closed last client connection.."
             
     member this.RunServer(certificate: string, certificatePassword: string) =
         serverCertificate <- new X509Certificate2(certificate, certificatePassword)
