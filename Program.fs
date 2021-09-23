@@ -96,7 +96,7 @@ type Server() =
             
     member this.DisplayUsage() =
         printfn "enceladus <CERT_FILE.pfx> <PASSWORD>"
-        printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSSWORD>"
+        printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSWORD>"
             
        
 [<EntryPoint>]
