@@ -94,10 +94,19 @@ type Server() =
             let client = listener.AcceptTcpClient()
             this.HandleClient(client)
             
+    member this.DisplayUsage() =
+        printfn "enceladus <CERT_FILE.pfx> <PASSWORD>"
+        printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSSWORD>"
+            
        
 [<EntryPoint>]
 let main argv =
     let server = Server()
+    
+    if argv.Length < 2 then
+        server.DisplayUsage()
+        Environment.Exit(-1)
+
     let certificate = argv.[0]
     let certificatePassword = argv.[1]
     server.RunServer(certificate, certificatePassword)
