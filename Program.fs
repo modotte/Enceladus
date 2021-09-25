@@ -9,8 +9,12 @@ open System.Text
 open Serilog
 
 type StatusCode =
-    | Input | Success | Redirect
-    | TemporaryFailure | PermanentFailure | ClientCertificateRequired
+    | Input
+    | Success
+    | Redirect
+    | TemporaryFailure
+    | PermanentFailure
+    | ClientCertificateRequired
 
 let getStatusCode = function
     | Input -> 10
