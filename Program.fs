@@ -67,8 +67,6 @@ type Server() =
                     
                 | _ ->
                     logger.Error("Found an error when parsing a client request")
-                    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} text/gemini; charset=utf8 \r\n"))
-                    sslStream.Write(Encoding.UTF8.GetBytes($"Error: {getStatusCode PermanentFailure}. There was a problem occured. Please try again. \r\n"))
                 
             with
             | :? AuthenticationException as ex ->
