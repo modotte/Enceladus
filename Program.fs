@@ -4,6 +4,7 @@ open System.Security.Authentication
 open System.Security.Cryptography.X509Certificates
 open System.Net
 open System.Net.Sockets
+open System.IO
 open System.Text
 open Serilog
 
@@ -21,10 +22,11 @@ let getStatusCode = function
 
 type Server() =
     let port = 1965
+    let staticDirectory = "public"
+    let MAX_BUFFER_LENGTH = 1048
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
      
     member this.ReadClientRequest(stream: SslStream) =
-        let MAX_BUFFER_LENGTH = 1048
         let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
         let messageData = StringBuilder()
         let mutable bytes = -1
@@ -39,10 +41,15 @@ type Server() =
                 bytes <- 0
             else
                 ()
-            
+
+        logger.Information(messageData.ToString())
+        logger.Information(Uri(messageData.ToString()).LocalPath)
         match Uri(messageData.ToString()).IsWellFormedOriginalString() with
         | true -> Some(messageData.ToString())
         | false -> None
+        
+    member this.ReturnFile(path: string) =
+        raise(NotImplementedException())
                 
     member this.HandleClient(client: TcpClient, serverCertificate: X509Certificate2) =
         let sslStream = new SslStream(client.GetStream(), false)
@@ -59,14 +66,21 @@ type Server() =
                 
                 match messageData with
                 | Some message ->
-                    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n"))
-                    
-                    sslStream.Write(Encoding.UTF8.GetBytes($"Received request: {message}\r\n"))
-                    sslStream.Write(Encoding.UTF8.GetBytes("Hello! 你好 \r\n"))
-                    sslStream.Write(Encoding.UTF8.GetBytes("=> https://google.com Google Search Engine \r\n"))
+                    if Uri(message).LocalPath = "/" && File.Exists("public/index.gmi") then 
+                        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n"))
+                        
+                        let mutable bytes = Array.zeroCreate MAX_BUFFER_LENGTH
+                        using (File.OpenRead("public/index.gmi")) (fun file ->
+                            let buffer =  UTF8Encoding(true)
+                            while file.Read(bytes, 0, bytes.Length) > 0 do
+                                sslStream.Write(Encoding.UTF8.GetBytes(buffer.GetString(bytes)))
+                            )
+                    else
+                        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} \r\n"))
                     
                 | _ ->
                     logger.Error("Found an error when parsing a client request")
+                    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} \r\n"))
                 
             with
             | :? AuthenticationException as ex ->
