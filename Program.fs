@@ -21,7 +21,12 @@ let getStatusCode = function
     | ClientCertificateRequired -> 60
     
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
-    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} text/gemini; charset=utf8 \r\n"))
+    match statusCode with
+    | TemporaryFailure | PermanentFailure | ClientCertificateRequired ->
+        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode}\r\n"))
+    
+    // TODO: Handle multiple MIME types.
+    | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} text/gemini; charset=utf8 \r\n"))
     
 let writeSingleLineBodyResponse (sslStream: SslStream) (text: string) =
     sslStream.Write(Encoding.UTF8.GetBytes($"{text} \r\n"))
@@ -72,13 +77,14 @@ type Server() =
                 
                 match messageData with
                 | Some message ->
-                    if Uri(message).LocalPath = "/" && File.Exists("public/index.gmi") then 
+                    if Uri(message).LocalPath = "/" && File.Exists($"{staticDirectory}/index.gmi") then 
                         writeHeaderResponse sslStream Success
                         
                         let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
-                        using (File.OpenRead("public/index.gmi")) (fun file ->
+                        using (File.OpenRead($"{staticDirectory}/index.gmi")) (fun file ->
+                            let beginningOffset = 0
                             let utf8Encoding =  UTF8Encoding(true)
-                            while file.Read(buffer, 0, buffer.Length) > 0 do
+                            while file.Read(buffer, beginningOffset, buffer.Length) > 0 do
                                 writeSingleLineBodyResponse sslStream (utf8Encoding.GetString(buffer))
                             )
                     else
