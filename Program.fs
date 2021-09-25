@@ -19,6 +19,12 @@ let getStatusCode = function
     | TemporaryFailure -> 40
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
+    
+let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
+    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} text/gemini; charset=utf8 \r\n"))
+    
+let writeSingleLineBodyResponse (sslStream: SslStream) (text: string) =
+    sslStream.Write(Encoding.UTF8.GetBytes($"{text} \r\n"))
 
 type Server() =
     let port = 1965
@@ -67,20 +73,20 @@ type Server() =
                 match messageData with
                 | Some message ->
                     if Uri(message).LocalPath = "/" && File.Exists("public/index.gmi") then 
-                        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode Success} text/gemini; charset=utf8 \r\n"))
+                        writeHeaderResponse sslStream Success
                         
                         let mutable bytes = Array.zeroCreate MAX_BUFFER_LENGTH
                         using (File.OpenRead("public/index.gmi")) (fun file ->
                             let buffer =  UTF8Encoding(true)
                             while file.Read(bytes, 0, bytes.Length) > 0 do
-                                sslStream.Write(Encoding.UTF8.GetBytes(buffer.GetString(bytes)))
+                                writeSingleLineBodyResponse sslStream (buffer.GetString(bytes))
                             )
                     else
-                        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} \r\n"))
+                        writeHeaderResponse sslStream PermanentFailure
                     
                 | _ ->
                     logger.Error("Found an error when parsing a client request")
-                    sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} \r\n"))
+                    writeHeaderResponse sslStream PermanentFailure
                 
             with
             | :? AuthenticationException as ex ->
