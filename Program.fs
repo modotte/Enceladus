@@ -77,9 +77,9 @@ type Server() =
                         
                         let mutable bytes = Array.zeroCreate MAX_BUFFER_LENGTH
                         using (File.OpenRead("public/index.gmi")) (fun file ->
-                            let buffer =  UTF8Encoding(true)
+                            let utf8Encoding =  UTF8Encoding(true)
                             while file.Read(bytes, 0, bytes.Length) > 0 do
-                                writeSingleLineBodyResponse sslStream (buffer.GetString(bytes))
+                                writeSingleLineBodyResponse sslStream (utf8Encoding.GetString(bytes))
                             )
                     else
                         writeHeaderResponse sslStream PermanentFailure
