@@ -75,11 +75,11 @@ type Server() =
                     if Uri(message).LocalPath = "/" && File.Exists("public/index.gmi") then 
                         writeHeaderResponse sslStream Success
                         
-                        let mutable bytes = Array.zeroCreate MAX_BUFFER_LENGTH
+                        let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
                         using (File.OpenRead("public/index.gmi")) (fun file ->
                             let utf8Encoding =  UTF8Encoding(true)
-                            while file.Read(bytes, 0, bytes.Length) > 0 do
-                                writeSingleLineBodyResponse sslStream (utf8Encoding.GetString(bytes))
+                            while file.Read(buffer, 0, buffer.Length) > 0 do
+                                writeSingleLineBodyResponse sslStream (utf8Encoding.GetString(buffer))
                             )
                     else
                         writeHeaderResponse sslStream PermanentFailure
