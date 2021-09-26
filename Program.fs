@@ -27,13 +27,13 @@ let getStatusCode = function
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
     match statusCode with
     | TemporaryFailure | PermanentFailure | ClientCertificateRequired ->
-        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode}\r\n"))
+        sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} An error occured\r\n"))
     
     // TODO: Handle multiple MIME types.
-    | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} text/gemini; charset=utf8 \r\n"))
+    | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} text/gemini; \r\n"))
     
-let writeSingleLineBodyResponse (sslStream: SslStream) (text: string) =
-    sslStream.Write(Encoding.UTF8.GetBytes($"{text} \r\n"))
+let writeBodyResponse (sslStream: SslStream) (text: string) =
+    sslStream.Write(Encoding.UTF8.GetBytes($"{text}"))
 
 type Server() =
     let port = 1965
@@ -83,14 +83,15 @@ type Server() =
                 | Some message ->
                     if Uri(message).LocalPath = "/" && File.Exists($"{staticDirectory}/index.gmi") then 
                         writeHeaderResponse sslStream Success
+                        logger.Information("Sent header")
                         
-                        let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
-                        using (File.OpenRead($"{staticDirectory}/index.gmi")) (fun file ->
-                            let beginningOffset = 0
-                            let utf8Encoding =  UTF8Encoding(true)
-                            while file.Read(buffer, beginningOffset, buffer.Length) > 0 do
-                                writeSingleLineBodyResponse sslStream (utf8Encoding.GetString(buffer))
-                            )
+                        try
+                            writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/index.gmi"))
+                        with
+                        | :? IOException as ex ->
+                            logger.Error($"There was an error during file loading: {ex.Message}")
+                                                
+                        
                     else
                         writeHeaderResponse sslStream PermanentFailure
                     
