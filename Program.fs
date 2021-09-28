@@ -57,11 +57,7 @@ type Server() =
             else
                 ()
 
-        logger.Information(messageData.ToString())
-        logger.Information(Uri(messageData.ToString()).LocalPath)
-        match Uri(messageData.ToString()).IsWellFormedOriginalString() with
-        | true -> Some(messageData.ToString())
-        | false -> None
+        messageData.ToString()
         
     member this.ReturnFile(path: string) =
         raise(NotImplementedException())
@@ -80,28 +76,33 @@ type Server() =
                 logger.Information("A client requested some resources..")
                 
                 match messageData with
-                | Some message ->
-                    if Uri(message).LocalPath = "/" && File.Exists($"{staticDirectory}/index.gmi") then 
+                | message ->
+                    match message with
+                    | m when Uri(m).LocalPath = "/" && File.Exists($"{staticDirectory}/index.gmi") -> 
                         writeHeaderResponse sslStream Success
                         logger.Information("Sent header")
-                        
                         try
                             writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/index.gmi"))
+                            logger.Information("Send body")
                         with
                         | :? IOException as ex ->
                             logger.Error($"There was an error during file loading: {ex.Message}")
-                                                
+
+                    | m when File.Exists($"{staticDirectory}/{Uri(m).LocalPath}.gmi") ->
+                        logger.Information($"{staticDirectory}/{Uri(m).LocalPath}.gmi")
                         
-                    else
+                        writeHeaderResponse sslStream Success
+                        logger.Information("Sent header")
+                        
+                        writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(m).LocalPath}.gmi"))
+                        logger.Information("Send body")
+                    | _ ->
                         writeHeaderResponse sslStream PermanentFailure
-                    
-                | _ ->
-                    logger.Error("Found an error when parsing a client request")
-                    writeHeaderResponse sslStream PermanentFailure
+                        logger.Error("Path doesn't exist!")
                 
             with
             | :? AuthenticationException as ex ->
-                printfn $"Exception: {ex.Message}"
+                logger.Error($"Exception: {ex.Message}")
                 if ex.InnerException <> null then
                     logger.Information($"Inner exception: {ex.InnerException.Message}")
                 

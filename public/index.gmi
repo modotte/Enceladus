@@ -2,3 +2,4 @@ Hello!
 How are you?
 
 => https://google.com
+=> gemini://gemini.circumlunar.space
