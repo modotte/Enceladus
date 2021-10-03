@@ -2,13 +2,15 @@
 
 A Gemini protocol compliant server implementation in .NET and F#.
 
-## Building
+## Status
 
-`dotnet build`
+Experimental.
 
-### Running
+## Running
 
-`dotnet run -- <CERT_FILE.pfx> <PASSWORD>`
+> Generate SSL certificates first by running `sh generate_ssl.sh`.
+
+`dotnet run -- <CERT_FILE.pfx> <PASSWORD>` to start the server.
 
 ## License
 
