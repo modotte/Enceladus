@@ -15,14 +15,23 @@ type StatusCode =
     | TemporaryFailure
     | PermanentFailure
     | ClientCertificateRequired
+    
+type ClientHandlingResult =
+    | Success of int * string
+    | IOError of IOException
+    | PathDoesntExistError of string
+    | AuthenticationError of AuthenticationException
 
 let getStatusCode = function
     | Input -> 10
-    | Success -> 20
+    | StatusCode.Success -> 20
     | Redirect -> 30
     | TemporaryFailure -> 40
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
+    
+let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
+    
     
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
     match statusCode with
@@ -35,11 +44,37 @@ let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
 let writeBodyResponse (sslStream: SslStream) (text: string) =
     sslStream.Write(Encoding.UTF8.GetBytes($"{text}"))
 
+let returnResponse messageData staticDirectory sslStream =
+    match messageData with
+    | message ->
+        try
+            let indexPage = $"{staticDirectory}/index.gmi"
+            match message with
+            | msg when Uri(msg).LocalPath = "/" && File.Exists(indexPage) ->
+                writeHeaderResponse sslStream StatusCode.Success
+                writeBodyResponse sslStream (File.ReadAllText(indexPage))
+                ClientHandlingResult.Success (getStatusCode StatusCode.Success, indexPage)
+            | msg when File.Exists($"{staticDirectory}/{Uri(msg).LocalPath}.gmi") ->
+                let page = $"{staticDirectory}/{Uri(msg).LocalPath}.gmi"
+                writeHeaderResponse sslStream StatusCode.Success
+                writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(msg).LocalPath}.gmi"))
+                
+                ClientHandlingResult.Success (getStatusCode StatusCode.Success, page)
+                
+            | _ ->
+                writeHeaderResponse sslStream StatusCode.PermanentFailure
+                PathDoesntExistError $"Path to {staticDirectory}/{Uri(message).LocalPath}.gmi doesn't exist!"
+            with
+            | :? IOException as ex ->
+                IOError ex
+            | :? AuthenticationException as ex ->
+                AuthenticationError ex
+                
+
 type Server() =
     let port = 1965
     let staticDirectory = "public"
     let MAX_BUFFER_LENGTH = 1048
-    let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
      
     member this.ReadClientRequest(stream: SslStream) =
         let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
@@ -52,63 +87,37 @@ type Server() =
             let mutable chars = Array.zeroCreate(decoder.GetCharCount(buffer, 0, bytes))
             decoder.GetChars(buffer, 0, bytes, chars, 0) |> ignore
             messageData.Append(chars) |> ignore
-            if messageData.ToString().IndexOf("\r\n") <> -1 then
+            match messageData.ToString().IndexOf("\r\n") with
+            | bytesCount when bytesCount <> -1 ->
                 bytes <- 0
-            else
-                ()
+            | _ -> ()
 
         messageData.ToString()
-        
-    member this.ReturnFile(path: string) =
-        raise(NotImplementedException())
                 
     member this.HandleClient(client: TcpClient, serverCertificate: X509Certificate2) =
         let sslStream = new SslStream(client.GetStream(), false)
-        try
-            try
-                let timeoutDuration = 5000
-                sslStream.AuthenticateAsServer(serverCertificate, false, true)
-                sslStream.ReadTimeout <- timeoutDuration
-                sslStream.WriteTimeout <- timeoutDuration
-                
-                logger.Information("A client connected..")
-                let messageData = this.ReadClientRequest(sslStream)
-                logger.Information("A client requested some resources..")
-                
-                match messageData with
-                | message ->
-                    match message with
-                    | m when Uri(m).LocalPath = "/" && File.Exists($"{staticDirectory}/index.gmi") -> 
-                        writeHeaderResponse sslStream Success
-                        logger.Information("Sent header")
-                        try
-                            writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/index.gmi"))
-                            logger.Information("Send body")
-                        with
-                        | :? IOException as ex ->
-                            logger.Error($"There was an error during file loading: {ex.Message}")
+        
+        let timeoutDuration = 5000
+        sslStream.AuthenticateAsServer(serverCertificate, false, true)
+        sslStream.ReadTimeout <- timeoutDuration
+        sslStream.WriteTimeout <- timeoutDuration
+        
+        logger.Information("A client connected..")
+        let messageData = this.ReadClientRequest(sslStream)
+        logger.Information("A client requested some resources..")
+        
+        match returnResponse messageData staticDirectory sslStream with
+        | ClientHandlingResult.Success (code, page)
+            when code >= getStatusCode StatusCode.Success && code <= getStatusCode Redirect ->
+            logger.Information($"Successful response to {page} with {code} as status code")
+        | IOError err ->
+            logger.Error(err.Message)
+        | PathDoesntExistError err ->
+            logger.Error(err)
+        | AuthenticationError err ->
+            logger.Error(err.Message)
+        | _ -> logger.Error("An unknown error occured")
 
-                    | m when File.Exists($"{staticDirectory}/{Uri(m).LocalPath}.gmi") ->
-                        logger.Information($"{staticDirectory}/{Uri(m).LocalPath}.gmi")
-                        
-                        writeHeaderResponse sslStream Success
-                        logger.Information("Sent header")
-                        
-                        writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(m).LocalPath}.gmi"))
-                        logger.Information("Send body")
-                    | _ ->
-                        writeHeaderResponse sslStream PermanentFailure
-                        logger.Error("Path doesn't exist!")
-                
-            with
-            | :? AuthenticationException as ex ->
-                logger.Error($"Exception: {ex.Message}")
-                if ex.InnerException <> null then
-                    logger.Information($"Inner exception: {ex.InnerException.Message}")
-                
-                sslStream.Close()
-                client.Close()
-        finally
         sslStream.Close()
         client.Close()
         
