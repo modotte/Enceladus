@@ -65,16 +65,16 @@ let returnResponse messageData staticDirectory sslStream =
             let indexFilename = $"{staticDirectory}/index.gmi"
 
             match message with
-            | msg when Uri(msg).LocalPath = "/" && File.Exists(indexFilename) ->
+            | _ when Uri(message).LocalPath = "/" && File.Exists(indexFilename) ->
                 writeHeaderResponse sslStream StatusCode.Success
                 writeBodyResponse sslStream (File.ReadAllText(indexFilename))
                 ClientHandlingResult.Success(getStatusCode StatusCode.Success, indexFilename)
-            | msg when File.Exists($"{staticDirectory}/{Uri(msg).LocalPath}.gmi") ->
+            | _ when File.Exists($"{staticDirectory}/{Uri(message).LocalPath}.gmi") ->
                 let filename =
-                    $"{staticDirectory}/{Uri(msg).LocalPath}.gmi"
+                    $"{staticDirectory}/{Uri(message).LocalPath}.gmi"
 
                 writeHeaderResponse sslStream StatusCode.Success
-                writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(msg).LocalPath}.gmi"))
+                writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(message).LocalPath}.gmi"))
 
                 ClientHandlingResult.Success(getStatusCode StatusCode.Success, filename)
             | _ ->
