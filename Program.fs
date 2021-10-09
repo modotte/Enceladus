@@ -31,19 +31,13 @@ let getStatusCode =
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
     
-type MIMEType =
-    | Text of string
-    | HTML of string
-    | JSON of string
-    | Gemini of string
-    
 let getMIMETypeFromExtension (filename: string) =
     let extension = Path.GetExtension(filename)
     match extension with
-    | ".html" | ".xhtml" | ".htm" | ".xhtm" -> HTML extension
-    | ".json" -> JSON extension
-    | ".gmi" | ".gemini" -> Gemini extension
-    | _ -> Text extension
+    | ".html" | ".xhtml" | ".htm" | ".xhtm" -> (extension, "text/html")
+    | ".json" -> (extension, "application/json")
+    | ".gmi" | ".gemini" -> (extension, "text/gemini")
+    | _ -> (extension, "text/plain")
 
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
     match statusCode with
