@@ -1,6 +1,12 @@
 # Enceladus
 
-A Gemini protocol compliant server implementation in .NET and F#.
+A synchronous Gemini protocol compliant server implementation in .NET and F#.
+Currently, serves as a static file server on Linux.
+
+## Features
+
+* Make use *index.gmi* file as fixed default homepage.
+* Handles Gemini, plain text, JSON and HTML files.
 
 ## Status
 

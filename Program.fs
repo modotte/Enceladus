@@ -40,7 +40,15 @@ let getMIMETypeFromExtension (filename: string) =
     | _ -> (extension, "text/plain")
     
 let getFile (filename: string) (directory: string) =
-    Directory.GetFiles(directory, $"{filename}.?*") |> Array.tryHead
+    Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead
+    
+let translatePath (segments: string array) =
+    if Array.length segments = 2 then
+        Array.last segments
+    else
+        let path = Array.skip 0 segments |> String.Concat
+        path.[1..]
+
 
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string) =
     match statusCode with
@@ -66,10 +74,10 @@ let returnResponse messageData staticDirectory sslStream =
                 
                 ClientHandlingResult.Success (getStatusCode StatusCode.Success, indexFilename)
             | _ ->
-                match getFile (Uri(message).Segments |> Array.last) staticDirectory with
-                | Some file ->
+                match getFile (Uri(message).Segments |> translatePath) staticDirectory with
+                | Some file -> 
                     let extension, mime = getMIMETypeFromExtension file
-                    let filename = $"{staticDirectory}/{Uri(message).Segments |> Array.last}{extension}"
+                    let filename = $"{staticDirectory}/{Uri(message).Segments |> translatePath}{extension}"
                     
                     writeHeaderResponse sslStream StatusCode.Success mime
                     writeBodyResponse sslStream (File.ReadAllText(filename))
