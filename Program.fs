@@ -40,17 +40,15 @@ let getMIMETypeFromExtension (filename: string) =
     | _ -> (extension, "text/plain")
     
 let getFile (filename: string) (directory: string) =
-    Directory.GetFiles(directory, $"{filename}.*") |> Array.tryHead
+    Directory.GetFiles(directory, $"{filename}.?*") |> Array.tryHead
 
-let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
+let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string) =
     match statusCode with
     | TemporaryFailure
     | PermanentFailure
     | ClientCertificateRequired ->
         sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} An error occured\r\n"))
-
-    // TODO: Handle multiple MIME types.
-    | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} text/gemini; \r\n"))
+    | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime}; \r\n"))
 
 let writeBodyResponse (sslStream: SslStream) (text: string) =
     sslStream.Write(Encoding.UTF8.GetBytes($"{text}"))
@@ -63,20 +61,24 @@ let returnResponse messageData staticDirectory sslStream =
 
             match message with
             | _ when Uri(message).LocalPath = "/" && File.Exists(indexFilename) ->
-                writeHeaderResponse sslStream StatusCode.Success
+                writeHeaderResponse sslStream StatusCode.Success "text/gemini"
                 writeBodyResponse sslStream (File.ReadAllText(indexFilename))
-                ClientHandlingResult.Success(getStatusCode StatusCode.Success, indexFilename)
-            | _ when File.Exists($"{staticDirectory}/{Uri(message).LocalPath}.gmi") ->
-                let filename =
-                    $"{staticDirectory}/{Uri(message).LocalPath}.gmi"
-
-                writeHeaderResponse sslStream StatusCode.Success
-                writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(message).LocalPath}.gmi"))
-
-                ClientHandlingResult.Success(getStatusCode StatusCode.Success, filename)
+                
+                ClientHandlingResult.Success (getStatusCode StatusCode.Success, indexFilename)
             | _ ->
-                writeHeaderResponse sslStream StatusCode.PermanentFailure
-                PathDoesntExistError $"Path to {staticDirectory}/{Uri(message).LocalPath}.gmi doesn't exist!"
+                match getFile (Uri(message).Segments |> Array.last) staticDirectory with
+                | Some file ->
+                    let extension, mime = getMIMETypeFromExtension file
+                    let filename = $"{staticDirectory}/{Uri(message).Segments |> Array.last}{extension}"
+                    
+                    writeHeaderResponse sslStream StatusCode.Success mime
+                    writeBodyResponse sslStream (File.ReadAllText(filename))
+                    
+                    ClientHandlingResult.Success (getStatusCode StatusCode.Success, filename)
+                | _ ->
+                    writeHeaderResponse sslStream StatusCode.PermanentFailure ""
+                    PathDoesntExistError $"{Uri(message).AbsolutePath} path does not exist!"
+                
         with
         | :? IOException as ex -> IOError ex
         | :? AuthenticationException as ex -> AuthenticationError ex
