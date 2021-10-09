@@ -62,21 +62,21 @@ let returnResponse messageData staticDirectory sslStream =
     match messageData with
     | message ->
         try
-            let indexPage = $"{staticDirectory}/index.gmi"
+            let indexFilename = $"{staticDirectory}/index.gmi"
 
             match message with
-            | msg when Uri(msg).LocalPath = "/" && File.Exists(indexPage) ->
+            | msg when Uri(msg).LocalPath = "/" && File.Exists(indexFilename) ->
                 writeHeaderResponse sslStream StatusCode.Success
-                writeBodyResponse sslStream (File.ReadAllText(indexPage))
-                ClientHandlingResult.Success(getStatusCode StatusCode.Success, indexPage)
+                writeBodyResponse sslStream (File.ReadAllText(indexFilename))
+                ClientHandlingResult.Success(getStatusCode StatusCode.Success, indexFilename)
             | msg when File.Exists($"{staticDirectory}/{Uri(msg).LocalPath}.gmi") ->
-                let page =
+                let filename =
                     $"{staticDirectory}/{Uri(msg).LocalPath}.gmi"
 
                 writeHeaderResponse sslStream StatusCode.Success
                 writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(msg).LocalPath}.gmi"))
 
-                ClientHandlingResult.Success(getStatusCode StatusCode.Success, page)
+                ClientHandlingResult.Success(getStatusCode StatusCode.Success, filename)
             | _ ->
                 writeHeaderResponse sslStream StatusCode.PermanentFailure
                 PathDoesntExistError $"Path to {staticDirectory}/{Uri(message).LocalPath}.gmi doesn't exist!"
