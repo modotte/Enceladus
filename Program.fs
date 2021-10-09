@@ -38,6 +38,9 @@ let getMIMETypeFromExtension (filename: string) =
     | ".json" -> (extension, "application/json")
     | ".gmi" | ".gemini" -> (extension, "text/gemini")
     | _ -> (extension, "text/plain")
+    
+let getFile (filename: string) (directory: string) =
+    Directory.GetFiles(directory, $"{filename}.*") |> Array.tryHead
 
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
     match statusCode with
