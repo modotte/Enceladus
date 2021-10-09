@@ -31,12 +31,6 @@ let getStatusCode =
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
 
-let logger =
-    LoggerConfiguration()
-        .WriteTo.Console()
-        .CreateLogger()
-
-
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) =
     match statusCode with
     | TemporaryFailure
@@ -69,7 +63,6 @@ let returnResponse messageData staticDirectory sslStream =
                 writeBodyResponse sslStream (File.ReadAllText($"{staticDirectory}/{Uri(msg).LocalPath}.gmi"))
 
                 ClientHandlingResult.Success(getStatusCode StatusCode.Success, page)
-
             | _ ->
                 writeHeaderResponse sslStream StatusCode.PermanentFailure
                 PathDoesntExistError $"Path to {staticDirectory}/{Uri(message).LocalPath}.gmi doesn't exist!"
@@ -78,87 +71,89 @@ let returnResponse messageData staticDirectory sslStream =
         | :? AuthenticationException as ex -> AuthenticationError ex
 
 
-type Server() =
-    let port = 1965
-    let staticDirectory = "public"
-    let MAX_BUFFER_LENGTH = 1048
+let port = 1965
+let staticDirectory = "public"
+let MAX_BUFFER_LENGTH = 1048
 
-    member this.ReadClientRequest(stream: SslStream) =
-        let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
-        let messageData = StringBuilder()
-        let mutable bytes = -1
+let logger =
+    LoggerConfiguration()
+        .WriteTo.Console()
+        .CreateLogger()
 
-        while bytes <> 0 do
-            bytes <- stream.Read(buffer, 0, buffer.Length)
-            let decoder = Encoding.UTF8.GetDecoder()
+let readClientRequest (stream: SslStream) =
+    let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
+    let messageData = StringBuilder()
+    let mutable bytes = -1
 
-            let mutable chars =
-                Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
+    while bytes <> 0 do
+        bytes <- stream.Read(buffer, 0, buffer.Length)
+        let decoder = Encoding.UTF8.GetDecoder()
 
-            decoder.GetChars(buffer, 0, bytes, chars, 0)
-            |> ignore
+        let mutable chars =
+            Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
 
-            messageData.Append(chars) |> ignore
+        decoder.GetChars(buffer, 0, bytes, chars, 0)
+        |> ignore
 
-            match messageData.ToString().IndexOf("\r\n") with
-            | bytesCount when bytesCount <> -1 -> bytes <- 0
-            | _ -> ()
+        messageData.Append(chars) |> ignore
 
-        messageData.ToString()
+        match messageData.ToString().IndexOf("\r\n") with
+        | bytesCount when bytesCount <> -1 -> bytes <- 0
+        | _ -> ()
 
-    member this.HandleClient(client: TcpClient, serverCertificate: X509Certificate2) =
-        let sslStream = new SslStream(client.GetStream(), false)
+    messageData.ToString()
 
-        let timeoutDuration = 5000
-        sslStream.AuthenticateAsServer(serverCertificate, false, true)
-        sslStream.ReadTimeout <- timeoutDuration
-        sslStream.WriteTimeout <- timeoutDuration
+let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) =
+    let sslStream = new SslStream(client.GetStream(), false)
 
-        logger.Information("A client connected..")
-        let messageData = this.ReadClientRequest(sslStream)
-        logger.Information("A client requested some resources..")
+    let timeoutDuration = 5000
+    sslStream.AuthenticateAsServer(serverCertificate, false, true)
+    sslStream.ReadTimeout <- timeoutDuration
+    sslStream.WriteTimeout <- timeoutDuration
 
-        match returnResponse messageData staticDirectory sslStream with
-        | ClientHandlingResult.Success (code, page) when
-            code >= getStatusCode StatusCode.Success
-            && code <= getStatusCode Redirect
-            ->
-            logger.Information($"Successful response to {page} with {code} as status code")
-        | IOError err -> logger.Error(err.Message)
-        | PathDoesntExistError err -> logger.Error(err)
-        | AuthenticationError err -> logger.Error(err.Message)
-        | _ -> logger.Error("An unknown error occured")
+    logger.Information("A client connected..")
+    let messageData = readClientRequest sslStream
+    logger.Information("A client requested some resources..")
 
-        sslStream.Close()
-        client.Close()
+    match returnResponse messageData staticDirectory sslStream with
+    | ClientHandlingResult.Success (code, page) when
+        code >= getStatusCode StatusCode.Success
+        && code <= getStatusCode Redirect
+        ->
+        logger.Information($"Successful response to {page} with {code} as status code")
+    | IOError err -> logger.Error(err.Message)
+    | PathDoesntExistError err -> logger.Error(err)
+    | AuthenticationError err -> logger.Error(err.Message)
+    | _ -> logger.Error("An unknown error occured")
 
-        logger.Information("Closed last client connection..")
+    sslStream.Close()
+    client.Close()
 
-    member this.RunServer(serverCertificate: X509Certificate2) =
-        let listener = TcpListener(IPAddress.Any, port)
-        listener.Start()
+    logger.Information("Closed last client connection..")
 
-        while true do
-            logger.Information($"Waiting for a client to connect at port {port}")
-            let client = listener.AcceptTcpClient()
-            this.HandleClient(client, serverCertificate)
+let runServer (serverCertificate: X509Certificate2) =
+    let listener = TcpListener(IPAddress.Any, port)
+    listener.Start()
 
-    member this.DisplayUsage() =
-        printfn "enceladus <CERT_FILE.pfx> <PASSWORD>"
-        printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSWORD>"
+    while true do
+        logger.Information($"Waiting for a client to connect at port {port}")
+        let client = listener.AcceptTcpClient()
+        handleClient client serverCertificate
+
+let displayUsage =
+    printfn "enceladus <CERT_FILE.pfx> <PASSWORD>"
+    printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSWORD>"
 
 
 [<EntryPoint>]
 let main argv =
-    let server = Server()
-
     if argv.Length < 2 then
-        server.DisplayUsage()
+        displayUsage
         Environment.Exit(-1)
 
     let certificateFile = argv.[0]
     let certificatePassword = argv.[1]
 
-    server.RunServer(new X509Certificate2(certificateFile, certificatePassword))
+    runServer (new X509Certificate2(certificateFile, certificatePassword))
 
     0
