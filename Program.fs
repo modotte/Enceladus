@@ -109,12 +109,9 @@ let readClientRequest (stream: SslStream) =
     while bytes <> 0 do
         bytes <- stream.Read(buffer, 0, buffer.Length)
         let decoder = Encoding.UTF8.GetDecoder()
-
         let mutable chars =
             Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
-
         decoder.GetChars(buffer, 0, bytes, chars, 0) |> ignore
-
         messageData.Append(chars) |> ignore
 
         match messageData.ToString().IndexOf("\r\n") with
@@ -126,6 +123,7 @@ let readClientRequest (stream: SslStream) =
 let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (staticDirectory: string) =
     let sslStream = new SslStream(client.GetStream(), false)
 
+    // TODO: Put `timeoutDuration` inside config.ini
     let timeoutDuration = 5000
     sslStream.AuthenticateAsServer(serverCertificate, false, true)
     sslStream.ReadTimeout <- timeoutDuration
@@ -135,6 +133,8 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
     let messageData = readClientRequest sslStream
     logger.Information("A client requested some resources..")
 
+    // BUG: Fix unhandled error when retrieving unknown path on an existing base file in URI
+    // Example: gemini://localhost/about/notExist/noteventhispath
     match returnResponse messageData staticDirectory sslStream with
     | ClientHandlingResult.Success (code, page) when
         code >= getStatusCode StatusCode.Success
