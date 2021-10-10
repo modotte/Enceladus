@@ -36,13 +36,16 @@ let getMIMETypeFromExtension (filename: string) =
     let extension = Path.GetExtension(filename)
     match extension with
     | ".html" | ".xhtml" | ".htm" | ".xhtm" -> (extension, "text/html")
-    | ".json" -> (extension, "application/json")
+    | ".md" -> (extension, "text/markdown")
     | ".gmi" | ".gemini" -> (extension, "text/gemini")
     | _ -> (extension, "text/plain")
     
 let getFile (filename: string) (directory: string) =
     Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead
     
+// TODO: Treat extra '/' at the end of URI as safe character.
+// This means "gemini://localhost/firepower/" is equals to
+// "gemini://localhost/firepower"
 let translatePath (segments: string array) =
     if Array.length segments = 2 then
         Array.last segments
@@ -105,6 +108,8 @@ let readClientRequest (stream: SslStream) =
     let messageData = StringBuilder()
     let mutable bytes = -1
 
+    // TODO: Supports image files (png and jpg).
+    // Currently, the server ended up parsing them into application/octet-stream only?
     while bytes <> 0 do
         bytes <- stream.Read(buffer, 0, buffer.Length)
         let decoder = Encoding.UTF8.GetDecoder()

@@ -6,7 +6,7 @@ Currently, serves as a static file server on Linux.
 ## Features
 
 * Make use *index.gmi* file as fixed default homepage.
-* Handles Gemini, Markdown, and HTML MIME types. Others will be treated as plain text.
+* Handles Gemini, JSON and HTML MIME types. Others will be treated as plain text.
 * Handle subdirectories.
 
 ## Status

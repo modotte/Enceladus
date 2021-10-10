@@ -1,14 +1,17 @@
 #!/bin/sh
 
-# Generates a default certificate files. If no argument provided,
-# it will generate files starting with .MyCertificate.
+# Generates a default certificate files. If two arguments aren't provided,
+# it will generate files starting with .MyCertificate with localhost as
+# common name.
 
-# Usage example: sh generate_ssl.sh [CUSTOM_CERTIFICATE_FILENAME]
+# Usage example: sh generate_ssl.sh [CUSTOM_CERTIFICATE_FILENAME] [COMMON_NAME]
 
-if [ -n "$1" ]; then
+if [ -n "$1" ] && [ -n "$2" ]; then
     certificate_name="$1"
+    common_name="$2"
 else
     certificate_name=".MyCertificate"
+    common_name="localhost"
 fi
 
 openssl req \
@@ -17,6 +20,7 @@ openssl req \
     -sha256 \
     -nodes \
     -days 3650 \
+    -subj "/C=US/ST=Oregon/L=Portland/CN=$common_name" \
     -keyout "$certificate_name.key" \
     -out "$certificate_name.crt"
 
