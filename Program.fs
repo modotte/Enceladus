@@ -43,15 +43,15 @@ let getMIMETypeFromExtension (filename: string) =
 let getFile (filename: string) (directory: string) =
     Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead
     
-// TODO: Treat extra '/' at the end of URI as safe character.
-// This means "gemini://localhost/firepower/" is equals to
-// "gemini://localhost/firepower"
 let translatePath (segments: string array) =
+    let removeTrailingSlash (str: string) =
+        str.TrimEnd([|'/'|])
+        
     if Array.length segments = 2 then
-        Array.last segments
+        Array.last segments |> removeTrailingSlash
     else
         let path = Array.skip 0 segments |> String.Concat
-        path.[1..]
+        path.[1..] |> removeTrailingSlash
 
 
 let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string) =
