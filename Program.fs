@@ -99,9 +99,7 @@ let returnResponse messageData staticDirectory sslStream =
 let MAX_BUFFER_LENGTH = 1048
 
 let logger =
-    LoggerConfiguration()
-        .WriteTo.Console()
-        .CreateLogger()
+    LoggerConfiguration().WriteTo.Console().CreateLogger()
 
 let readClientRequest (stream: SslStream) =
     let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
@@ -117,8 +115,7 @@ let readClientRequest (stream: SslStream) =
         let mutable chars =
             Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
 
-        decoder.GetChars(buffer, 0, bytes, chars, 0)
-        |> ignore
+        decoder.GetChars(buffer, 0, bytes, chars, 0) |> ignore
 
         messageData.Append(chars) |> ignore
 
@@ -156,24 +153,27 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
 
     logger.Information("Closed last client connection..")
 
-let runServer (serverCertificate: X509Certificate2) (port: int) (staticDirectory: string) =
-    let listener = TcpListener(IPAddress.Any, port)
+let runServer (host: string) port staticDirectory (serverCertificate: X509Certificate2) =
+    let hostInfo = Dns.GetHostEntry(host)
+    let ipAddress = hostInfo.AddressList.[0]
+    let listener = TcpListener(ipAddress, port)
     listener.Start()
 
     while true do
-        logger.Information($"Waiting for a client to connect at port {port}")
+        logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
         let client = listener.AcceptTcpClient()
         handleClient client serverCertificate staticDirectory
 
 type ConfigType = IniFile<"config.ini">
 [<EntryPoint>]
-let main argv =
+let main _ =
 
-    runServer (
-        new X509Certificate2(
-            ConfigType.Server.certificateFilePFXPath,
-            string ConfigType.Server.certificatePassword))
+    runServer
+        ConfigType.Server.host
         ConfigType.Server.port
         ConfigType.Server.staticDirectory
+        (new X509Certificate2(
+            ConfigType.Server.certificateFilePFXPath,
+            string ConfigType.Server.certificatePassword))
 
     0
