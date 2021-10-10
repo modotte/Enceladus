@@ -146,7 +146,7 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
     | IOError err -> logger.Error(err.Message)
     | PathDoesntExistError err -> logger.Error(err)
     | AuthenticationError err -> logger.Error(err.Message)
-    | _ -> logger.Error("An unknown error occured")
+    | _ -> logger.Error("An unknown has error occured")
 
     sslStream.Close()
     client.Close()
