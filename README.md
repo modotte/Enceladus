@@ -15,7 +15,7 @@ Experimental.
 
 ## Running
 
-> Generate SSL certificates first by running `sh generate_ssl.sh`.
+> Generate SSL certificates first by running `sh generate_ssl.sh CERT_FILE`.
 
 `dotnet run -- <CERT_FILE.pfx> <PASSWORD>` to start the server.
 

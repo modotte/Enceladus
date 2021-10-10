@@ -7,6 +7,7 @@ open System.Net.Sockets
 open System.IO
 open System.Text
 open Serilog
+open System.Text.Json
 
 type StatusCode =
     | Input
@@ -162,7 +163,7 @@ let runServer (serverCertificate: X509Certificate2) =
         handleClient client serverCertificate
 
 let displayUsage =
-    printfn "enceladus <CERT_FILE.pfx> <PASSWORD>"
+    printfn "Enceladus <CERT_FILE.pfx> <PASSWORD>"
     printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSWORD>"
 
 
