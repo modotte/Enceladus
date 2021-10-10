@@ -7,7 +7,7 @@ open System.Net.Sockets
 open System.IO
 open System.Text
 open Serilog
-open System.Text.Json
+open FSharp.Configuration
 
 type StatusCode =
     | Input
@@ -92,9 +92,7 @@ let returnResponse messageData staticDirectory sslStream =
         | :? IOException as ex -> IOError ex
         | :? AuthenticationException as ex -> AuthenticationError ex
 
-
-let port = 1965
-let staticDirectory = "public"
+[<Literal>]
 let MAX_BUFFER_LENGTH = 1048
 
 let logger =
@@ -125,7 +123,7 @@ let readClientRequest (stream: SslStream) =
 
     messageData.ToString()
 
-let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) =
+let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (staticDirectory: string) =
     let sslStream = new SslStream(client.GetStream(), false)
 
     let timeoutDuration = 5000
@@ -153,29 +151,24 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) =
 
     logger.Information("Closed last client connection..")
 
-let runServer (serverCertificate: X509Certificate2) =
+let runServer (serverCertificate: X509Certificate2) (port: int) (staticDirectory: string) =
     let listener = TcpListener(IPAddress.Any, port)
     listener.Start()
 
     while true do
         logger.Information($"Waiting for a client to connect at port {port}")
         let client = listener.AcceptTcpClient()
-        handleClient client serverCertificate
+        handleClient client serverCertificate staticDirectory
 
-let displayUsage =
-    printfn "Enceladus <CERT_FILE.pfx> <PASSWORD>"
-    printfn "or from dotnet: dotnet run -- <CERT_FILE.pfx> <PASSWORD>"
-
-
+type ConfigType = IniFile<"config.ini">
 [<EntryPoint>]
 let main argv =
-    if argv.Length < 2 then
-        displayUsage
-        Environment.Exit(-1)
 
-    let certificateFile = argv.[0]
-    let certificatePassword = argv.[1]
-
-    runServer (new X509Certificate2(certificateFile, certificatePassword))
+    runServer (
+        new X509Certificate2(
+            ConfigType.Server.certificateFilePFXPath,
+            string ConfigType.Server.certificatePassword))
+        ConfigType.Server.port
+        ConfigType.Server.staticDirectory
 
     0
