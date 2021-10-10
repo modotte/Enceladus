@@ -97,9 +97,7 @@ let returnResponse messageData staticDirectory sslStream =
 
 [<Literal>]
 let MAX_BUFFER_LENGTH = 1048
-
-let logger =
-    LoggerConfiguration().WriteTo.Console().CreateLogger()
+let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
 
 let readClientRequest (stream: SslStream) =
     let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
