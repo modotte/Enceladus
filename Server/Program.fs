@@ -123,6 +123,10 @@ module Server =
 
         message.ToString()
 
+    let getClientIPAddress (client: TcpClient) =
+        let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
+        endpoint.Address
+
     let handleClient (serverCertificate: X509Certificate2) (client: TcpClient) (staticDirectory: string) =
         let sslStream = new SslStream(client.GetStream(), false)
 
@@ -132,9 +136,9 @@ module Server =
         sslStream.ReadTimeout <- timeoutDuration
         sslStream.WriteTimeout <- timeoutDuration
 
-        logger.Information("A client connected..")
+        logger.Information($"A client with IP address {getClientIPAddress client} connected..")
         let message = readClientRequest sslStream
-        logger.Information("A client requested some resources..")
+        logger.Information($"A client requested the URI: {message}")
 
         // BUG: Fix unhandled error when retrieving unknown path on an existing base file in URI
         // Example: gemini://localhost/about/notExist/noteventhispath
