@@ -11,5 +11,5 @@ let Setup () =
 [<Test>]
 let All () =
     refinePath [|"/"; "/owo/"|] |> should equal "/owo"
-    refinePath [|"/"; "/about/"; "/meow"|] |> should equal "/meow"
-    refinePath [|"/"; "rowo"|] |> should equal "aha"
+    refinePath [|"/"; "/about"; "/meow"|] |> should equal "/about/meow"
+    refinePath [|"/"; "/rowo"|] |> should equal "/rowo"
