@@ -1,7 +1,0 @@
-# Firm
-## It's not a firmware
-
-Many people love firmware, but what they actually do?
-
-
-=> gemini://localhost/about
