@@ -22,8 +22,9 @@ module Server =
 
     type ClientHandlingResult =
         | Success of int * string
+        | FileDoesntExistError of string
+        | PathDoesntExistError of DirectoryNotFoundException
         | IOError of IOException
-        | PathDoesntExistError of string
         | AuthenticationError of AuthenticationException
 
     let getStatusCode =
@@ -44,8 +45,12 @@ module Server =
         | _ -> (extension, "text/plain")
         
     let getFile (filename: string) (directory: string) =
-        Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead
-        
+        try
+            Ok(Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead)
+        with
+        | :? DirectoryNotFoundException as exn ->
+            Error(exn)
+            
     let refinePath (pathSegments: string array) =
         let removeTrailingSlash (str: string) =
             str.TrimEnd([|'/'|])
@@ -57,13 +62,16 @@ module Server =
             path.[1..] |> removeTrailingSlash
 
 
-    let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string) =
+    let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
         match statusCode with
         | TemporaryFailure
         | PermanentFailure
         | ClientCertificateRequired ->
-            sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} An error occured\r\n"))
-        | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime}; \r\n"))
+            match errorMessage with
+            | Some message ->
+                sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {message}\r\n"))
+            | None -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} An unknown error has occured!\r\n"))
+        | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime.Value}; \r\n"))
 
     let writeBodyResponse (sslStream: SslStream) (text: string) = sslStream.Write(Encoding.UTF8.GetBytes(text))
 
@@ -75,23 +83,29 @@ module Server =
 
                 match _message with
                 | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
-                    writeHeaderResponse sslStream StatusCode.Success "text/gemini"
+                    writeHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
                     writeBodyResponse sslStream (File.ReadAllText(indexFilename))
                     
                     ClientHandlingResult.Success (getStatusCode StatusCode.Success, indexFilename)
                 | _ ->
                     match getFile (Uri(_message).Segments |> refinePath) staticDirectory with
-                    | Some file -> 
-                        let extension, mime = getMIMETypeFromExtension file
-                        let filename = $"{staticDirectory}/{Uri(_message).Segments |> refinePath}{extension}"
-                        
-                        writeHeaderResponse sslStream StatusCode.Success mime
-                        writeBodyResponse sslStream (File.ReadAllText(filename))
-                        
-                        ClientHandlingResult.Success (getStatusCode StatusCode.Success, filename)
-                    | _ ->
-                        writeHeaderResponse sslStream StatusCode.PermanentFailure ""
-                        PathDoesntExistError $"{Uri(_message).AbsolutePath} path does not exist!"
+                    | Ok file ->
+                        match file with
+                        | Some _file ->
+                            let extension, mime = getMIMETypeFromExtension _file
+                            let filename = $"{staticDirectory}/{Uri(_message).Segments |> refinePath}{extension}"
+                            
+                            writeHeaderResponse sslStream StatusCode.Success (Some mime) None
+                            writeBodyResponse sslStream (File.ReadAllText(filename))
+                            
+                            ClientHandlingResult.Success (getStatusCode StatusCode.Success, filename)
+                        | None ->
+                            let error = $"{Uri(_message).AbsolutePath.[1..]} file does not exist!"
+                            writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some error)
+                            FileDoesntExistError error
+                    | Error err ->
+                        writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some "Requested path or file doesn't exist!")
+                        PathDoesntExistError err
                     
             with
             | :? IOException as exn -> IOError exn
@@ -143,14 +157,12 @@ module Server =
         // BUG: Fix unhandled error when retrieving unknown path on an existing base file in URI
         // Example: gemini://localhost/about/notExist/noteventhispath
         match returnResponse sslStream message staticDirectory with
-        | ClientHandlingResult.Success (code, page) when
-            code >= getStatusCode StatusCode.Success
-            && code <= getStatusCode Redirect ->
-                logger.Information($"Successful response to {page} with {code} as status code")
+        | ClientHandlingResult.Success (code, page) ->
+            logger.Information($"Successful response to {page} with {code} as status code")
+        | FileDoesntExistError err -> logger.Error(err)        
+        | PathDoesntExistError err -> logger.Error(err.Message)
         | IOError err -> logger.Error(err.Message)
-        | PathDoesntExistError err -> logger.Error(err)
         | AuthenticationError err -> logger.Error(err.Message)
-        | _ -> logger.Error("An unknown has error occured")
 
         sslStream.Close()
         client.Close()
