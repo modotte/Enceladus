@@ -1,0 +1,7 @@
+{
+  "certificatePFXFile": ".MyCertificate.pfx",
+  "certificatePassword": "1234",
+  "host": "localhost",
+  "port": 1965,
+  "staticDirectory": "public"
+}

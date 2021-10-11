@@ -9,7 +9,8 @@ open System.Net.Sockets
 open System.IO
 open System.Text
 open Serilog
-open FSharp.Configuration
+open FSharp.Json
+
 
 module Server =
     type StatusCode =
@@ -26,9 +27,17 @@ module Server =
         | PathDoesntExistError of DirectoryNotFoundException
         | IOError of IOException
         | AuthenticationError of AuthenticationException
+        
+    type ServerConfiguration =
+        {
+            certificatePFXFile: string
+            certificatePassword: string
+            host: string
+            port: int
+            staticDirectory: string
+        }
 
-    let getStatusCode =
-        function
+    let getStatusCode = function
         | Input -> 10
         | StatusCode.Success -> 20
         | Redirect -> 30
@@ -100,9 +109,9 @@ module Server =
                             
                             ClientHandlingResult.Success (getStatusCode StatusCode.Success, filename)
                         | None ->
-                            let error = $"{Uri(_message).AbsolutePath.[1..]} file does not exist!"
-                            writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some error)
-                            FileDoesntExistError error
+                            let errorMessage = $"{Uri(_message).AbsolutePath.[1..]} file does not exist!"
+                            writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some errorMessage)
+                            FileDoesntExistError errorMessage
                     | Error err ->
                         writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some "Requested path or file doesn't exist!")
                         PathDoesntExistError err
@@ -167,7 +176,10 @@ module Server =
 
         logger.Information("Closed last client connection..")
 
-    let runServer (serverCertificate: X509Certificate2) (host: string) (port: int) (staticDirectory: string) =
+    let runServer (configuration: ServerConfiguration) =
+        let serverCertificate = new X509Certificate2(configuration.certificatePFXFile, configuration.certificatePassword)
+        let host = configuration.host
+        let port = configuration.port
         let hostInfo = Dns.GetHostEntry(host)
         let ipAddress = hostInfo.AddressList.[0]
         let listener = TcpListener(ipAddress, port)
@@ -176,17 +188,16 @@ module Server =
         while true do
             logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
             let client = listener.AcceptTcpClient()
-            handleClient serverCertificate client staticDirectory
+            handleClient serverCertificate client configuration.staticDirectory
 
-    type ConfigType = IniFile<"config.ini">
     [<EntryPoint>]
     let main _ =
-        runServer
-            (new X509Certificate2(
-                ConfigType.Server.certificateFilePFXPath,
-                string ConfigType.Server.certificatePassword))
-            ConfigType.Server.host
-            ConfigType.Server.port
-            ConfigType.Server.staticDirectory
-
+        let configurationFile = Environment.GetEnvironmentVariable("ENCELADUS_CONFIG_FILE")
+        if configurationFile |> String.IsNullOrEmpty then
+            File.ReadAllText("config.json")
+        else
+            File.ReadAllText(configurationFile)
+        |> Json.deserialize<ServerConfiguration>
+        |> runServer
+        
         0
