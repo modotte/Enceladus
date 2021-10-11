@@ -62,26 +62,25 @@ let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: s
         sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} An error occured\r\n"))
     | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime}; \r\n"))
 
-let writeBodyResponse (sslStream: SslStream) (text: string) =
-    sslStream.Write(Encoding.UTF8.GetBytes($"{text}"))
+let writeBodyResponse (sslStream: SslStream) (text: string) = sslStream.Write(Encoding.UTF8.GetBytes(text))
 
-let returnResponse (messageData: string) (staticDirectory: string) (sslStream: SslStream) =
-    match messageData with
-    | message ->
+let returnResponse (sslStream: SslStream) (message: string) (staticDirectory: string) =
+    match message with
+    | _message ->
         try
             let indexFilename = $"{staticDirectory}/index.gmi"
 
-            match message with
-            | _ when Uri(message).LocalPath = "/" && File.Exists(indexFilename) ->
+            match _message with
+            | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
                 writeHeaderResponse sslStream StatusCode.Success "text/gemini"
                 writeBodyResponse sslStream (File.ReadAllText(indexFilename))
                 
                 ClientHandlingResult.Success (getStatusCode StatusCode.Success, indexFilename)
             | _ ->
-                match getFile (Uri(message).Segments |> translatePath) staticDirectory with
+                match getFile (Uri(_message).Segments |> translatePath) staticDirectory with
                 | Some file -> 
                     let extension, mime = getMIMETypeFromExtension file
-                    let filename = $"{staticDirectory}/{Uri(message).Segments |> translatePath}{extension}"
+                    let filename = $"{staticDirectory}/{Uri(_message).Segments |> translatePath}{extension}"
                     
                     writeHeaderResponse sslStream StatusCode.Success mime
                     writeBodyResponse sslStream (File.ReadAllText(filename))
@@ -89,38 +88,39 @@ let returnResponse (messageData: string) (staticDirectory: string) (sslStream: S
                     ClientHandlingResult.Success (getStatusCode StatusCode.Success, filename)
                 | _ ->
                     writeHeaderResponse sslStream StatusCode.PermanentFailure ""
-                    PathDoesntExistError $"{Uri(message).AbsolutePath} path does not exist!"
+                    PathDoesntExistError $"{Uri(_message).AbsolutePath} path does not exist!"
                 
         with
-        | :? IOException as ex -> IOError ex
-        | :? AuthenticationException as ex -> AuthenticationError ex
+        | :? IOException as exn -> IOError exn
+        | :? AuthenticationException as exn -> AuthenticationError exn
 
 [<Literal>]
 let MAX_BUFFER_LENGTH = 1048
 let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
 
-let readClientRequest (stream: SslStream) =
+let readClientRequest (sslStream: SslStream) =
+    // TODO: Investigate this buffer logic reasoning.
     let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
-    let messageData = StringBuilder()
+    let message = StringBuilder()
     let mutable bytes = -1
 
     // TODO: Supports image files (png and jpg).
     // Currently, the server ended up parsing them into application/octet-stream only?
     while bytes <> 0 do
-        bytes <- stream.Read(buffer, 0, buffer.Length)
+        bytes <- sslStream.Read(buffer, 0, buffer.Length)
         let decoder = Encoding.UTF8.GetDecoder()
-        let mutable chars =
+        let mutable characters =
             Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
-        decoder.GetChars(buffer, 0, bytes, chars, 0) |> ignore
-        messageData.Append(chars) |> ignore
+        decoder.GetChars(buffer, 0, bytes, characters, 0) |> ignore
+        message.Append(characters) |> ignore
 
-        match messageData.ToString().IndexOf("\r\n") with
+        match message.ToString().IndexOf("\r\n") with
         | bytesCount when bytesCount <> -1 -> bytes <- 0
         | _ -> ()
 
-    messageData.ToString()
+    message.ToString()
 
-let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (staticDirectory: string) =
+let handleClient (serverCertificate: X509Certificate2) (client: TcpClient) (staticDirectory: string) =
     let sslStream = new SslStream(client.GetStream(), false)
 
     // TODO: Put `timeoutDuration` inside config.ini
@@ -130,12 +130,12 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
     sslStream.WriteTimeout <- timeoutDuration
 
     logger.Information("A client connected..")
-    let messageData = readClientRequest sslStream
+    let message = readClientRequest sslStream
     logger.Information("A client requested some resources..")
 
     // BUG: Fix unhandled error when retrieving unknown path on an existing base file in URI
     // Example: gemini://localhost/about/notExist/noteventhispath
-    match returnResponse messageData staticDirectory sslStream with
+    match returnResponse sslStream message staticDirectory with
     | ClientHandlingResult.Success (code, page) when
         code >= getStatusCode StatusCode.Success
         && code <= getStatusCode Redirect ->
@@ -150,7 +150,7 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
 
     logger.Information("Closed last client connection..")
 
-let runServer (host: string) (port: int) (staticDirectory: string) (serverCertificate: X509Certificate2) =
+let runServer (serverCertificate: X509Certificate2) (host: string) (port: int) (staticDirectory: string) =
     let hostInfo = Dns.GetHostEntry(host)
     let ipAddress = hostInfo.AddressList.[0]
     let listener = TcpListener(ipAddress, port)
@@ -159,18 +159,17 @@ let runServer (host: string) (port: int) (staticDirectory: string) (serverCertif
     while true do
         logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
         let client = listener.AcceptTcpClient()
-        handleClient client serverCertificate staticDirectory
+        handleClient serverCertificate client staticDirectory
 
 type ConfigType = IniFile<"config.ini">
 [<EntryPoint>]
 let main _ =
-
     runServer
-        ConfigType.Server.host
-        ConfigType.Server.port
-        ConfigType.Server.staticDirectory
         (new X509Certificate2(
             ConfigType.Server.certificateFilePFXPath,
             string ConfigType.Server.certificatePassword))
+        ConfigType.Server.host
+        ConfigType.Server.port
+        ConfigType.Server.staticDirectory
 
     0
