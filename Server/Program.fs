@@ -154,8 +154,6 @@ module Server =
         let message = readClientRequest sslStream
         logger.Information($"A client requested the URI: {message}")
 
-        // BUG: Fix unhandled error when retrieving unknown path on an existing base file in URI
-        // Example: gemini://localhost/about/notExist/noteventhispath
         match returnResponse sslStream message staticDirectory with
         | ClientHandlingResult.Success (code, page) ->
             logger.Information($"Successful response to {page} with {code} as status code")
