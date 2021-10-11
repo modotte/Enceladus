@@ -17,7 +17,11 @@ Experimental.
 
 1. Generate SSL certificates first by running `sh generate_ssl.sh CERT_FILE`.
 2. Change server credentials according to your setup in `config.ini` file.
-3. `dotnet run` or `./Enceladus` to start the server.
+3. `dotnet run -p Server` or `./Enceladus` to start the server.
+
+## Testing
+
+Run `dotnet test` to execute the unit tests.
 
 ## License
 
