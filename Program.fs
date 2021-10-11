@@ -65,7 +65,7 @@ let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: s
 let writeBodyResponse (sslStream: SslStream) (text: string) =
     sslStream.Write(Encoding.UTF8.GetBytes($"{text}"))
 
-let returnResponse messageData staticDirectory sslStream =
+let returnResponse (messageData: string) (staticDirectory: string) (sslStream: SslStream) =
     match messageData with
     | message ->
         try
@@ -138,9 +138,8 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
     match returnResponse messageData staticDirectory sslStream with
     | ClientHandlingResult.Success (code, page) when
         code >= getStatusCode StatusCode.Success
-        && code <= getStatusCode Redirect
-        ->
-        logger.Information($"Successful response to {page} with {code} as status code")
+        && code <= getStatusCode Redirect ->
+            logger.Information($"Successful response to {page} with {code} as status code")
     | IOError err -> logger.Error(err.Message)
     | PathDoesntExistError err -> logger.Error(err)
     | AuthenticationError err -> logger.Error(err.Message)
@@ -151,7 +150,7 @@ let handleClient (client: TcpClient) (serverCertificate: X509Certificate2) (stat
 
     logger.Information("Closed last client connection..")
 
-let runServer (host: string) port staticDirectory (serverCertificate: X509Certificate2) =
+let runServer (host: string) (port: int) (staticDirectory: string) (serverCertificate: X509Certificate2) =
     let hostInfo = Dns.GetHostEntry(host)
     let ipAddress = hostInfo.AddressList.[0]
     let listener = TcpListener(ipAddress, port)
