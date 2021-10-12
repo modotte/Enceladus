@@ -20,7 +20,7 @@ Experimental (on Linux only)
 
 ### Running
 
-1. Generate SSL certificates first by running `sh generate_ssl.sh CERT_FILE`.
+1. Generate SSL certificates first by running `sh generate_ssl.sh`.
 2. Change server credentials according to your setup in `config.json` file.
     - You can override ***config.json*** location by assigning the absolute path using `ENCELADUS_CONFIG_FILE` environment variable.
     - Example: `ENCELADUS_CONFIG_FILE="$HOME/config.json"` on Linux systems.

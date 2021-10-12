@@ -21,7 +21,7 @@ Experimental (on Linux only)
 ### Running
 
 1. Change current directory into *Server/* directory.
-2. Generate SSL certificates first by running `sh generate_ssl.sh CERT_FILE`.
+2. Generate SSL certificates first by running `sh generate_ssl.sh`.
 3. Change server credentials according to your setup in `config.json` file.
     - You can override ***config.json*** location by assigning the absolute path using `ENCELADUS_CONFIG_FILE` environment variable.
     - Example: `ENCELADUS_CONFIG_FILE="$HOME/config.json"` on Linux systems.
@@ -35,7 +35,7 @@ please see LICENSE file.
 
 ## See Also
 
-### Gemini ciients (aka browsers)
+### Gemini clients (aka browsers)
 
 - [Amfora](https://github.com/makeworld-the-better-one/amfora#amfora), the primary client that I use to test the server.
 - [Castor](https://git.sr.ht/~julienxx/castor)
