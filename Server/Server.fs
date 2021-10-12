@@ -53,6 +53,7 @@ module Server =
         
     let getFile (filename: string) (directory: string) =
         try
+            // BUG: More than once matches in arbitrary level of directories.
             Ok (Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead)
         with
         | :? DirectoryNotFoundException as exn ->
