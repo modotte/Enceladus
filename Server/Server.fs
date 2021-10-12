@@ -28,11 +28,11 @@ module Server =
         | AuthenticationError of AuthenticationException
         
     type ServerConfiguration = {
-            certificatePFXFile: string
-            certificatePassword: string
-            host: string
-            port: int
-            staticDirectory: string
+        certificatePFXFile: string
+        certificatePassword: string
+        host: string
+        port: int
+        staticDirectory: string
     }
 
     let getStatusCode = function
