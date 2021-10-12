@@ -68,8 +68,6 @@ module Server =
             let path = Array.skip 0 pathSegments |> String.Concat
             path.[1..] |> removeTrailingSlash
             
-
-
     let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
         match statusCode with
         | TemporaryFailure
