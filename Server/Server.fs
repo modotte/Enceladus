@@ -9,7 +9,6 @@ open System.Net.Sockets
 open System.IO
 open System.Text
 open Serilog
-open FSharp.Json
 
 
 module Server =
