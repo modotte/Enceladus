@@ -53,20 +53,21 @@ module Server =
         
     let getFile (filename: string) (directory: string) =
         try
-            Ok(Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead)
+            Ok (Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead)
         with
         | :? DirectoryNotFoundException as exn ->
-            Error(exn)
+            Error exn
             
     let refinePath (pathSegments: string array) =
         let removeTrailingSlash (str: string) =
             str.TrimEnd([|'/'|])
-            
-        if Array.length pathSegments = 2 then
-            Array.last pathSegments |> removeTrailingSlash
-        else
+
+        match Array.length pathSegments with
+        | 2 -> Array.last pathSegments |> removeTrailingSlash
+        | _ -> 
             let path = Array.skip 0 pathSegments |> String.Concat
             path.[1..] |> removeTrailingSlash
+            
 
 
     let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
