@@ -7,8 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Error.fs" />
+    <Compile Include="Server.fs" />
     <Compile Include="Program.fs" />
-    <Content Include="config.json" />
 
 
     <Content Include="README.md">
