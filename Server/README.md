@@ -3,12 +3,6 @@
 A synchronous Gemini protocol compliant server implementation in .NET and F#.
 Currently, serves as a static file server on Linux.
 
-## Features
-
-* Make use *index.gmi* file as fixed default homepage.
-* Handles Gemini, Markdown, and HTML MIME types. Others will be treated as plain text.
-* Handle subdirectories.
-
 ## Status
 
 Experimental (on Linux only)
@@ -25,7 +19,7 @@ Experimental (on Linux only)
     - You can override ***config.json*** location by assigning the absolute path using `ENCELADUS_CONFIG_FILE` environment variable.
     - Example: `ENCELADUS_CONFIG_FILE="$HOME/config.json"` on Linux systems.
 3. `dotnet run` or `./Enceladus` to start the server.
-4. Visit `gemini://localhost:1965/` to visit the homepage of the server using the clients that you can find by scrolling to the bottom of this page.
+4. Visit `gemini://localhost:1965/`, the homepage of the server using the clients that you can find by scrolling to the bottom of this page.
 
 ## License
 
