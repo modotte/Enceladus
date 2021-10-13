@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Error.fs" />
     <Compile Include="Server.fs" />
     <Compile Include="Program.fs" />
 

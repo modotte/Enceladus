@@ -9,11 +9,16 @@ module Program =
     [<EntryPoint>]
     let main _ =
         let configurationFile = Environment.GetEnvironmentVariable("ENCELADUS_CONFIG_FILE")
-        if configurationFile |> String.IsNullOrEmpty then
-            File.ReadAllText("config.json")
-        else
-            File.ReadAllText(configurationFile)
-        |> Json.deserialize<ServerConfiguration>
-        |> runServer
+        
+        try
+            if configurationFile |> String.IsNullOrEmpty then
+                File.ReadAllText("config.json")
+            else
+                File.ReadAllText(configurationFile)
+            |> Json.deserialize<ServerConfiguration>
+            |> runServer
+        with
+        | :? FileNotFoundException as exn ->
+            logger.Error(exn.Message)
         
         0

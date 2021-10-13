@@ -4,6 +4,7 @@ open System
 open System.Net.Security
 open System.Security.Authentication
 open System.Security.Cryptography.X509Certificates
+open System.Security.Cryptography
 open System.Net
 open System.Net.Sockets
 open System.IO
@@ -24,8 +25,7 @@ module Server =
         | Success of int * string
         | FileDoesntExistError of string
         | PathDoesntExistError of DirectoryNotFoundException
-        | IOError of IOException
-        | AuthenticationError of AuthenticationException
+        | UnauthorizedAccessError of UnauthorizedAccessException
         
     type ServerConfiguration = {
         certificatePFXFile: string
@@ -93,7 +93,7 @@ module Server =
                     writeHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
                     writeBodyResponse sslStream (File.ReadAllText(indexFilename))
                     
-                    ClientHandlingResult.Success (getStatusCode StatusCode.Success, indexFilename)
+                    Success (getStatusCode StatusCode.Success, indexFilename)
                 | _ ->
                     match getFile (Uri(_message).Segments |> refinePath) staticDirectory with
                     | Ok file ->
@@ -105,18 +105,19 @@ module Server =
                             writeHeaderResponse sslStream StatusCode.Success (Some mime) None
                             writeBodyResponse sslStream (File.ReadAllText(filename))
                             
-                            ClientHandlingResult.Success (getStatusCode StatusCode.Success, filename)
+                            Success (getStatusCode StatusCode.Success, filename)
                         | None ->
                             let errorMessage = $"{Uri(_message).AbsolutePath.[1..]} file does not exist!"
-                            writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some errorMessage)
+                            writeHeaderResponse sslStream PermanentFailure None (Some errorMessage)
                             FileDoesntExistError errorMessage
                     | Error err ->
-                        writeHeaderResponse sslStream StatusCode.PermanentFailure None (Some "Requested path or file doesn't exist!")
+                        writeHeaderResponse sslStream PermanentFailure None (Some "Requested path doesn't exist!")
                         PathDoesntExistError err
                     
             with
-            | :? IOException as exn -> IOError exn
-            | :? AuthenticationException as exn -> AuthenticationError exn
+            | :? UnauthorizedAccessException as exn ->
+                writeHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
+                UnauthorizedAccessError exn
 
     [<Literal>]
     let MAX_BUFFER_LENGTH = 1048
@@ -142,7 +143,7 @@ module Server =
             | bytesCount when bytesCount <> -1 -> bytes <- 0
             | _ -> ()
 
-        message.ToString()
+        string message
 
     let getClientIPAddress (client: TcpClient) =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
@@ -162,12 +163,11 @@ module Server =
         logger.Information($"A client requested the URI: {message}")
 
         match returnResponse sslStream message staticDirectory with
-        | ClientHandlingResult.Success (code, page) ->
+        | Success (code, page) ->
             logger.Information($"Successful response to {page} with {code} as status code")
         | FileDoesntExistError err -> logger.Error(err)        
         | PathDoesntExistError err -> logger.Error(err.Message)
-        | IOError err -> logger.Error(err.Message)
-        | AuthenticationError err -> logger.Error(err.Message)
+        | UnauthorizedAccessError err -> logger.Error(err.Message)
 
         sslStream.Close()
         client.Close()
@@ -175,15 +175,19 @@ module Server =
         logger.Information("Closed last client connection..")
 
     let runServer (configuration: ServerConfiguration) =
-        let serverCertificate = new X509Certificate2(configuration.certificatePFXFile, configuration.certificatePassword)
-        let host = configuration.host
-        let port = configuration.port
-        let hostInfo = Dns.GetHostEntry(host)
-        let ipAddress = hostInfo.AddressList.[0]
-        let listener = TcpListener(ipAddress, port)
-        listener.Start()
+        try
+            let serverCertificate = new X509Certificate2(configuration.certificatePFXFile, configuration.certificatePassword)
+            let host = configuration.host
+            let port = configuration.port
+            let hostInfo = Dns.GetHostEntry(host)
+            let ipAddress = hostInfo.AddressList.[0]
+            let listener = TcpListener(ipAddress, port)
+            listener.Start()
 
-        while true do
-            logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
-            let client = listener.AcceptTcpClient()
-            handleClient serverCertificate client configuration.staticDirectory
+            while true do
+                logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
+                let client = listener.AcceptTcpClient()
+                handleClient serverCertificate client configuration.staticDirectory
+        with
+        | :? CryptographicException as exn ->
+            logger.Error($"SSL certificate validation error! Error: {exn.Message}")
