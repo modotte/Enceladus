@@ -47,7 +47,7 @@ module Server =
             | None -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} An unknown error has occured!\r\n"))
         | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime.Value}; \r\n"))
 
-    let writeBodyResponse (sslStream: SslStream) (text: string) = sslStream.Write(Encoding.UTF8.GetBytes(text))
+    let writeBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
 
     let returnResponse (sslStream: SslStream) (message: string) (staticDirectory: string) =
         match message with
@@ -58,7 +58,7 @@ module Server =
                 match _message with
                 | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
                     writeHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
-                    writeBodyResponse sslStream (File.ReadAllText(indexFilename))
+                    writeBodyResponse sslStream indexFilename
                     
                     Success (getStatusCode StatusCode.Success, indexFilename)
                 | _ ->
@@ -70,7 +70,7 @@ module Server =
                             let filename = $"{staticDirectory}/{Uri(_message).Segments |> refinePath}{extension}"
                             
                             writeHeaderResponse sslStream StatusCode.Success (Some mime) None
-                            writeBodyResponse sslStream (File.ReadAllText(filename))
+                            writeBodyResponse sslStream filename
                             
                             Success (getStatusCode StatusCode.Success, filename)
                         | None ->
@@ -96,13 +96,10 @@ module Server =
         let message = StringBuilder()
         let mutable bytes = -1
 
-        // TODO: Supports image files (png and jpg).
-        // Currently, the server ended up parsing them into application/octet-stream only?
         while bytes <> 0 do
             bytes <- sslStream.Read(buffer, 0, buffer.Length)
             let decoder = Encoding.UTF8.GetDecoder()
-            let mutable characters =
-                Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
+            let mutable characters = Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
             decoder.GetChars(buffer, 0, bytes, characters, 0) |> ignore
             message.Append(characters) |> ignore
 

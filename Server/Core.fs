@@ -23,6 +23,8 @@ module Core =
         let extension = Path.GetExtension(filename)
         match extension with
         | ".html" | ".xhtml" | ".htm" | ".xhtm" -> (extension, "text/html")
+        | ".png" -> (extension, "image/png")
+        | ".jpeg" | ".jpg" -> (extension, "image/jpeg")
         | ".md" -> (extension, "text/markdown")
         | ".gmi" | ".gemini" -> (extension, "text/gemini")
         | _ -> (extension, "text/plain")
