@@ -2,7 +2,7 @@ module Tests
 
 open NUnit.Framework
 open FsUnit
-open Enceladus.Server
+open Enceladus.Core
 
 [<SetUp>]
 let Setup () =

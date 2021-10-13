@@ -1,16 +1,15 @@
 namespace Enceladus
 
-open System
 open System.IO
 
 module Core =
     type StatusCode =
-        | Input
-        | Success
-        | Redirect
-        | TemporaryFailure
-        | PermanentFailure
-        | ClientCertificateRequired
+    | Input
+    | Success
+    | Redirect
+    | TemporaryFailure
+    | PermanentFailure
+    | ClientCertificateRequired
         
     let getStatusCode = function
     | Input -> 10
@@ -19,7 +18,7 @@ module Core =
     | TemporaryFailure -> 40
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
-    
+
     let getMIMETypeFromExtension (filename: string) =
         let extension = Path.GetExtension(filename)
         match extension with
@@ -35,5 +34,5 @@ module Core =
         match Array.length pathSegments with
         | 2 -> Array.last pathSegments |> removeTrailingSlash
         | _ -> 
-            let path = Array.skip 0 pathSegments |> String.Concat
+            let path = Array.skip 0 pathSegments |> String.concat ""
             path.[1..] |> removeTrailingSlash

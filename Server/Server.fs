@@ -2,7 +2,6 @@ namespace Enceladus
 
 open System
 open System.Net.Security
-open System.Security.Authentication
 open System.Security.Cryptography.X509Certificates
 open System.Security.Cryptography
 open System.Net
@@ -91,7 +90,7 @@ module Server =
     let MAX_BUFFER_LENGTH = 1048
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
 
-    let readClientRequest (sslStream: SslStream) =
+    let parseRequest (sslStream: SslStream) =
         // TODO: Investigate this buffer logic reasoning.
         let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
         let message = StringBuilder()
@@ -127,7 +126,7 @@ module Server =
         sslStream.WriteTimeout <- timeoutDuration
 
         logger.Information($"A client with IP address {getClientIPAddress client} connected..")
-        let message = readClientRequest sslStream
+        let message = parseRequest sslStream
         logger.Information($"A client requested the URI: {message}")
 
         match returnResponse sslStream message staticDirectory with
