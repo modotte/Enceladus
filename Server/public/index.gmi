@@ -1,5 +1,15 @@
-Hello!
-How are you?
+# Hello World!
+## Hola Mundo
+### 你好，世界
+#### Привет, мир
 
-=> https://google.com
-=> gemini://gemini.circumlunar.space
+Welcome to Enceladus Gemini server!
+
+## Pages to to visit
+
+=> gemini://localhost/about About Page
+=> gemini://localhost/subdir/firm Scribbles
+=> gemini://localhost/subdir/code/c C Example Code
+
+### External links
+=> gemini://gemini.circumlunar.space Official Gemini Site
