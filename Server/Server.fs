@@ -25,6 +25,8 @@ module Server =
     type ServerConfiguration = {
         certificatePFXFile: string
         certificatePassword: string
+        requestTimeoutDuration: int
+        responseTimeoutDuration: int
         host: string
         port: int
         indexFile: string
@@ -122,11 +124,9 @@ module Server =
     let handleClient (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
 
-        // TODO: Put `timeoutDuration` inside config.ini
-        let timeoutDuration = 5000
         sslStream.AuthenticateAsServer(serverCertificate, false, true)
-        sslStream.ReadTimeout <- timeoutDuration
-        sslStream.WriteTimeout <- timeoutDuration
+        sslStream.ReadTimeout <- configuration.requestTimeoutDuration
+        sslStream.WriteTimeout <- configuration.responseTimeoutDuration
 
         logger.Information($"A client with IP address {getClientIPAddress client} connected..")
         let message = parseRequest sslStream

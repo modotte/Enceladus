@@ -1,6 +1,8 @@
 {
   "certificatePFXFile": ".MyCertificate.pfx",
   "certificatePassword": "1234",
+  "requestTimeoutDuration": 5000,
+  "responseTimeoutDuration": 5000,
   "host": "localhost",
   "port": 1965,
   "indexFile": "index.gmi",
