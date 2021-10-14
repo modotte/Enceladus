@@ -10,7 +10,6 @@ open System.IO
 open System.Text
 
 open Serilog
-open MimeMapping
 
 open Enceladus.Core
 
