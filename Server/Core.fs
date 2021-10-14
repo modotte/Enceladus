@@ -2,6 +2,8 @@ namespace Enceladus
 
 open System.IO
 
+open MimeMapping
+
 module Core =
     type StatusCode =
     | Input
@@ -20,14 +22,11 @@ module Core =
     | ClientCertificateRequired -> 60
 
     let getMIMETypeFromExtension (filename: string) =
+
         let extension = Path.GetExtension(filename)
         match extension with
-        | ".html" | ".xhtml" | ".htm" | ".xhtm" -> "text/html"
-        | ".png" -> "image/png"
-        | ".jpeg" | ".jpg" -> "image/jpeg"
-        | ".md" -> "text/markdown"
         | ".gmi" | ".gemini" -> "text/gemini"
-        | _ -> "text/plain"
+        | _ -> MimeUtility.GetMimeMapping(filename)
 
     let refinePath (pathSegments: string array) =
         let removeTrailingSlashes (str: string) = str.Trim('/')

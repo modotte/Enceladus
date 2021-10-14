@@ -10,7 +10,6 @@ let GetMimeTypeFromExtensionTest () =
     getMIMETypeFromExtension "M723Jhhs.jpg" |> should equal "image/jpeg"
     getMIMETypeFromExtension "meow.gmi" |> should equal "text/gemini"
     getMIMETypeFromExtension "82yqoiAWJKS.txt" |> should equal "text/plain"
-    getMIMETypeFromExtension "megacol" |> should equal "text/plain"
     getMIMETypeFromExtension "jhawhsha.jpeg" |> should equal "image/jpeg"
     getMIMETypeFromExtension "8wjs0002j020hahsiowa.png" |> should equal "image/png"    
 
