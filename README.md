@@ -7,6 +7,10 @@ Currently, serves as a static file server on Linux.
 
 Experimental (on Linux only)
 
+### Version
+
+v0.1.0
+
 ## Prerequisites to build
 
 * [dotnet](https://dotnet.microsoft.com/download) (>= v5.0.0)

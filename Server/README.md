@@ -25,6 +25,10 @@ but currently, this server has been tested to run well on Linux system so far.
 
 Experimental
 
+### Version
+
+v0.1.0
+
 ## What's next?
 
 [ ] Redesign for concurrent and simultaneous client connections.
