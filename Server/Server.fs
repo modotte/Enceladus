@@ -20,10 +20,20 @@ module Server =
         | FileDoesntExistError of string
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
+
+    
+    type ServerConfiguration = {
+        certificatePFXFile: string
+        certificatePassword: string
+        host: string
+        port: int
+        indexFile: string
+        staticDirectory: string
+    }
         
-    let getFile (directoryPath: string, filename: string) (staticDirectory: string) =
+    let getFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
         try
-            let path = Path.Combine(staticDirectory, directoryPath)
+            let path = Path.Combine(configuration.staticDirectory, directoryPath)
             Ok (Directory.GetFiles(path, $"{filename}.?*") |> Array.tryHead)
         with
         | :? DirectoryNotFoundException as exn ->
@@ -59,11 +69,11 @@ module Server =
             writeHeaderResponse sslStream PermanentFailure None (Some errorMessage)
             FileDoesntExistError errorMessage
 
-    let returnResponse (sslStream: SslStream) (message: string) (staticDirectory: string) =
+    let returnResponse (sslStream: SslStream) (configuration: ServerConfiguration) (message: string) =
         match message with
         | _message ->
             try
-                let indexFilename = Path.Combine(staticDirectory, "index.gmi")
+                let indexFilename = Path.Combine(configuration.staticDirectory, configuration.indexFile)
 
                 match _message with
                 | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
@@ -72,7 +82,7 @@ module Server =
                     
                     Success (getStatusCode StatusCode.Success, indexFilename)
                 | _ ->
-                    match getFile (Uri(_message).Segments |> refinePath) staticDirectory with
+                    match getFile (Uri(_message).Segments |> refinePath) configuration with
                     | Ok file ->
                         nonIndexPageResponse sslStream file
                     | Error err ->
@@ -109,7 +119,7 @@ module Server =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
         endpoint.Address
 
-    let handleClient (serverCertificate: X509Certificate2) (client: TcpClient) (staticDirectory: string) =
+    let handleClient (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
 
         // TODO: Put `timeoutDuration` inside config.ini
@@ -122,7 +132,7 @@ module Server =
         let message = parseRequest sslStream
         logger.Information($"A client requested the URI: {message}")
 
-        match returnResponse sslStream message staticDirectory with
+        match returnResponse sslStream configuration message with
         | Success (code, page) ->
             logger.Information($"Successful response to {page} with {code} as status code")
         | FileDoesntExistError err -> logger.Error(err)        
@@ -133,14 +143,6 @@ module Server =
         client.Close()
 
         logger.Information("Closed last client connection..")
-
-    type ServerConfiguration = {
-        certificatePFXFile: string
-        certificatePassword: string
-        host: string
-        port: int
-        staticDirectory: string
-    }
 
     let runServer (configuration: ServerConfiguration) =
         try
@@ -155,7 +157,7 @@ module Server =
             while true do
                 logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
                 let client = listener.AcceptTcpClient()
-                handleClient serverCertificate client configuration.staticDirectory
+                handleClient serverCertificate configuration client
         with
         | :? CryptographicException as exn ->
             logger.Error($"SSL certificate validation error! Error: {exn.Message}")

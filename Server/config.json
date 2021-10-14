@@ -3,5 +3,6 @@
   "certificatePassword": "1234",
   "host": "localhost",
   "port": 1965,
+  "indexFile": "index.gmi",
   "staticDirectory": "public"
 }
