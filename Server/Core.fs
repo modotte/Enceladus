@@ -22,19 +22,25 @@ module Core =
     let getMIMETypeFromExtension (filename: string) =
         let extension = Path.GetExtension(filename)
         match extension with
-        | ".html" | ".xhtml" | ".htm" | ".xhtm" -> (extension, "text/html")
-        | ".png" -> (extension, "image/png")
-        | ".jpeg" | ".jpg" -> (extension, "image/jpeg")
-        | ".md" -> (extension, "text/markdown")
-        | ".gmi" | ".gemini" -> (extension, "text/gemini")
-        | _ -> (extension, "text/plain")
+        | ".html" | ".xhtml" | ".htm" | ".xhtm" -> "text/html"
+        | ".png" -> "image/png"
+        | ".jpeg" | ".jpg" -> "image/jpeg"
+        | ".md" -> "text/markdown"
+        | ".gmi" | ".gemini" -> "text/gemini"
+        | _ -> "text/plain"
 
     let refinePath (pathSegments: string array) =
-        let removeTrailingSlash (str: string) =
-            str.TrimEnd([|'/'|])
-
-        match Array.length pathSegments with
-        | 2 -> Array.last pathSegments |> removeTrailingSlash
-        | _ -> 
-            let path = Array.skip 0 pathSegments |> String.concat ""
-            path.[1..] |> removeTrailingSlash
+        let removeTrailingSlashes (str: string) = str.Trim('/')
+        let segments =
+            pathSegments
+            |> Array.skip 1
+            |> Array.map removeTrailingSlashes
+        
+        let directoryPath =
+            segments
+            |> Array.rev
+            |> Array.skip 1
+            |> Array.rev
+            
+        (Path.Combine(directoryPath), Array.last segments)
+            

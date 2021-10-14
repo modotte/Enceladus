@@ -20,10 +20,10 @@ module Server =
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
         
-    let getFile (filename: string) (directory: string) =
+    let getFile (directoryPath: string, filename: string) (staticDirectory: string) =
         try
-            // BUG: More than once matches in arbitrary level of directories.
-            Ok (Directory.GetFiles(directory, $"{filename}.?*", SearchOption.AllDirectories) |> Array.tryHead)
+            let path = Path.Combine(staticDirectory, directoryPath)
+            Ok (Directory.GetFiles(path, $"{filename}.?*") |> Array.tryHead)
         with
         | :? DirectoryNotFoundException as exn ->
             Error exn
@@ -44,18 +44,17 @@ module Server =
 
     let writeBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
 
-    let nonIndexPageResponse (sslStream: SslStream) (file: string option) (staticDirectory: string) (message: string) = 
+    let nonIndexPageResponse (sslStream: SslStream) (file: string option) = 
         match file with
         | Some _file ->
-            let extension, mime = getMIMETypeFromExtension _file
-            let filename = $"{staticDirectory}/{Uri(message).Segments |> refinePath}{extension}"
+            let mime = getMIMETypeFromExtension _file
             
             writeHeaderResponse sslStream StatusCode.Success (Some mime) None
-            writeBodyResponse sslStream filename
+            writeBodyResponse sslStream _file
             
-            Success (getStatusCode StatusCode.Success, filename)
+            Success (getStatusCode StatusCode.Success, _file)
         | None ->
-            let errorMessage = $"{Uri(message).AbsolutePath.[1..]} file does not exist!"
+            let errorMessage = "File Not Found"
             writeHeaderResponse sslStream PermanentFailure None (Some errorMessage)
             FileDoesntExistError errorMessage
 
@@ -63,7 +62,7 @@ module Server =
         match message with
         | _message ->
             try
-                let indexFilename = $"{staticDirectory}/index.gmi"
+                let indexFilename = Path.Combine(staticDirectory, "index.gmi")
 
                 match _message with
                 | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
@@ -74,9 +73,9 @@ module Server =
                 | _ ->
                     match getFile (Uri(_message).Segments |> refinePath) staticDirectory with
                     | Ok file ->
-                        nonIndexPageResponse sslStream file staticDirectory _message
+                        nonIndexPageResponse sslStream file
                     | Error err ->
-                        writeHeaderResponse sslStream PermanentFailure None (Some "Requested path doesn't exist!")
+                        writeHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
                         PathDoesntExistError err
                     
             with
