@@ -20,14 +20,6 @@ module Server =
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
         
-    type ServerConfiguration = {
-        certificatePFXFile: string
-        certificatePassword: string
-        host: string
-        port: int
-        staticDirectory: string
-    }
-        
     let getFile (filename: string) (directory: string) =
         try
             // BUG: More than once matches in arbitrary level of directories.
@@ -52,6 +44,21 @@ module Server =
 
     let writeBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
 
+    let nonIndexPageResponse (sslStream: SslStream) (file: string option) (staticDirectory: string) (message: string) = 
+        match file with
+        | Some _file ->
+            let extension, mime = getMIMETypeFromExtension _file
+            let filename = $"{staticDirectory}/{Uri(message).Segments |> refinePath}{extension}"
+            
+            writeHeaderResponse sslStream StatusCode.Success (Some mime) None
+            writeBodyResponse sslStream filename
+            
+            Success (getStatusCode StatusCode.Success, filename)
+        | None ->
+            let errorMessage = $"{Uri(message).AbsolutePath.[1..]} file does not exist!"
+            writeHeaderResponse sslStream PermanentFailure None (Some errorMessage)
+            FileDoesntExistError errorMessage
+
     let returnResponse (sslStream: SslStream) (message: string) (staticDirectory: string) =
         match message with
         | _message ->
@@ -67,19 +74,7 @@ module Server =
                 | _ ->
                     match getFile (Uri(_message).Segments |> refinePath) staticDirectory with
                     | Ok file ->
-                        match file with
-                        | Some _file ->
-                            let extension, mime = getMIMETypeFromExtension _file
-                            let filename = $"{staticDirectory}/{Uri(_message).Segments |> refinePath}{extension}"
-                            
-                            writeHeaderResponse sslStream StatusCode.Success (Some mime) None
-                            writeBodyResponse sslStream filename
-                            
-                            Success (getStatusCode StatusCode.Success, filename)
-                        | None ->
-                            let errorMessage = $"{Uri(_message).AbsolutePath.[1..]} file does not exist!"
-                            writeHeaderResponse sslStream PermanentFailure None (Some errorMessage)
-                            FileDoesntExistError errorMessage
+                        nonIndexPageResponse sslStream file staticDirectory _message
                     | Error err ->
                         writeHeaderResponse sslStream PermanentFailure None (Some "Requested path doesn't exist!")
                         PathDoesntExistError err
@@ -140,6 +135,14 @@ module Server =
         client.Close()
 
         logger.Information("Closed last client connection..")
+
+    type ServerConfiguration = {
+        certificatePFXFile: string
+        certificatePassword: string
+        host: string
+        port: int
+        staticDirectory: string
+    }
 
     let runServer (configuration: ServerConfiguration) =
         try
