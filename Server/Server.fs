@@ -20,6 +20,7 @@ module Server =
         | FileDoesntExistError of string
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
+        | UriFormatError of UriFormatException
 
     
     type ServerConfiguration = {
@@ -95,12 +96,16 @@ module Server =
             | :? UnauthorizedAccessException as exn ->
                 writeHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
                 UnauthorizedAccessError exn
+            | :? UriFormatException as exn ->
+                writeHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
+                UriFormatError exn
+
 
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
 
     let parseRequest (sslStream: SslStream) =
-        let MAX_BUFFER_LENGTH = 4096
-        let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
+        let maxBufferLength = 4096
+        let mutable buffer = Array.zeroCreate maxBufferLength
         let message = StringBuilder()
         let mutable bytes = -1
 
@@ -138,6 +143,7 @@ module Server =
         | FileDoesntExistError err -> logger.Error(err)        
         | PathDoesntExistError err -> logger.Error(err.Message)
         | UnauthorizedAccessError err -> logger.Error(err.Message)
+        | UriFormatError err -> logger.Error(err.Message)
 
         sslStream.Close()
         client.Close()
