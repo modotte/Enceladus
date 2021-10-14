@@ -84,12 +84,10 @@ module Server =
                 writeHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
                 UnauthorizedAccessError exn
 
-    [<Literal>]
-    let MAX_BUFFER_LENGTH = 1048
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
 
     let parseRequest (sslStream: SslStream) =
-        // TODO: Investigate this buffer logic reasoning.
+        let MAX_BUFFER_LENGTH = 4096
         let mutable buffer = Array.zeroCreate MAX_BUFFER_LENGTH
         let message = StringBuilder()
         let mutable bytes = -1
