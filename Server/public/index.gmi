@@ -11,5 +11,7 @@ Welcome to Enceladus Gemini server!
 => gemini://localhost/subdir/firm Scribbles
 => gemini://localhost/subdir/code/c C Example Code
 
+=> gemini://localhost/enceladus Enceladus, The Saturn's Moon Picture
+
 ### External links
 => gemini://gemini.circumlunar.space Official Gemini Site
