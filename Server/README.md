@@ -31,9 +31,9 @@ v0.1.0
 
 ## What's next?
 
-[ ] Redesign for concurrent and simultaneous client connections.
-[ ] Improve error handling model.
-[ ] Support for client certificate validation.
+- [ ] Redesign for concurrent and simultaneous client connections.
+- [ ] Improve error handling model.
+- [ ] Support for client certificate validation.
 
 ## Prerequisites to build
 

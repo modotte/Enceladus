@@ -1,15 +1,39 @@
 # Enceladus
 
-A synchronous Gemini protocol compliant server implementation in .NET and F#.
-Currently, serves as a static file server on Linux.
+A simple, synchronous Gemini protocol compliant server implementation in .NET and F#.
+
+## What is Gemini network protocol?
+
+Gemini is a new application-level internet protocol for the distribution of arbitrary files, with some special consideration for serving a lightweight hypertext format which facilitates linking between files. You may think of Gemini as "the web, stripped right back to its essence" or as "Gopher, souped up and modernised just a little", depending upon your perspective (the latter view is probably more accurate). Gemini may be of interest to people who are:
+
+* Opposed to the web's ubiquitous tracking of users
+* Tired of nagging pop-ups, obnoxious adverts, autoplaying videos and other misfeatures of the modern web
+* Interested in low-power computing and/or low-speed networks, either by choice or necessity
+
+For more details, please visit [Gemini FAQ](https://gemini.circumlunar.space/docs/faq.gmi)
+
+## Supported Platforms
+
+Theoretically, Enceladus could be run on Windows and MacOSX without any further modifications,
+but currently, this server has been tested to run well on Linux system so far.
+
+- Linux: Supported
+- Windows: In the future
+- MacOSX: In the future
 
 ## Status
 
-Experimental (on Linux only)
+Experimental
 
 ### Version
 
 v0.1.0
+
+## What's next?
+
+- [ ] Redesign for concurrent and simultaneous client connections.
+- [ ] Improve error handling model.
+- [ ] Support for client certificate validation.
 
 ## Prerequisites to build
 
