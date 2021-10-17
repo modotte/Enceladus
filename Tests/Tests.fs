@@ -14,9 +14,9 @@ let GetMimeTypeFromExtensionTest () =
     getMIMETypeFromExtension "8wjs0002j020hahsiowa.png" |> should equal "image/png"    
 
 [<Test>]
-let RefinePathTest () =
-    refinePath [|"/"; "/owo/"|] |> should equal ("", "owo")
-    refinePath [|"/"; "/about"; "/meow"|] |> should equal ("about", "meow")
-    refinePath [|"/"; "/rowo"|] |> should equal ("", "rowo")
-    refinePath [|"/"; "/subdir"; "/code"; "c"|] |> should equal ("subdir/code", "c")
+let GetPathsFromUriTest () =
+    getPathsFromUri [|"/"; "/owo/"|] |> should equal ("", "owo")
+    getPathsFromUri [|"/"; "/about"; "/meow"|] |> should equal ("about", "meow")
+    getPathsFromUri [|"/"; "/rowo"|] |> should equal ("", "rowo")
+    getPathsFromUri [|"/"; "/subdir"; "/code"; "c"|] |> should equal ("subdir/code", "c")
 

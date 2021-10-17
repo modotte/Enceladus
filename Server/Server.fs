@@ -85,7 +85,7 @@ module Server =
                     
                     Success (getStatusCode StatusCode.Success, indexFilename)
                 | _ ->
-                    match getFile (Uri(_message).Segments |> refinePath) configuration with
+                    match getFile (Uri(_message).Segments |> getPathsFromUri) configuration with
                     | Ok file ->
                         nonIndexPageResponse sslStream file
                     | Error err ->
