@@ -160,10 +160,14 @@ module Server =
             let listener = TcpListener(ipAddress, port)
             listener.Start()
 
-            while true do
+            let rec run state =
                 logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
                 let client = listener.AcceptTcpClient()
                 handleClient serverCertificate configuration client
+
+                (run state)
+
+            (run true)
         with
         | :? CryptographicException as exn ->
             logger.Error($"SSL certificate validation error! Error: {exn.Message}")
