@@ -18,7 +18,7 @@ Guidelines for bug reports:
 
 1. **Use the GitHub issue search** &mdash; check if the issue has already been reported.
 
-2. **Check if the issue has been fixed** &mdash; try to reproduce it using the `master` branch in the repository.
+2. **Check if the issue has been fixed** &mdash; try to reproduce it using the `main` branch in the repository.
 
 3. **Isolate and report the problem** &mdash; ideally create a reduced test case.
 
