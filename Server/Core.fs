@@ -32,4 +32,4 @@ module Core =
         let directoryPath = Path.Combine(withoutSlashes .[1 .. withoutSlashes.Length - 2])
         let filename = withoutSlashes .[withoutSlashes.Length - 1]
            
-        directoryPath, filename
+        (directoryPath, filename)
