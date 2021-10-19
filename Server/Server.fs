@@ -21,39 +21,37 @@ module Server =
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
         | UriFormatError of UriFormatException
-
-    
     type ServerConfiguration = {
-        certificatePFXFile: string
-        certificatePassword: string
-        requestTimeoutDuration: int
-        responseTimeoutDuration: int
-        host: string
-        port: int
-        indexFile: string
-        staticDirectory: string
+        CertificatePFXFile: string
+        CertificatePassword: string
+        RequestTimeoutDuration: int
+        ResponseTimeoutDuration: int
+        Host: string
+        Port: int
+        IndexFile: string
+        StaticDirectory: string
     }
         
     let getFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
         try
-            let path = Path.Combine(configuration.staticDirectory, directoryPath)
+            let path = Path.Combine(configuration.StaticDirectory, directoryPath)
             Ok (Directory.GetFiles(path, $"{filename}.?*") |> Array.tryHead)
         with
         | :? DirectoryNotFoundException as exn ->
             Error exn
             
-    let writeErrorHeader (sslStream: SslStream) (statusCode: StatusCode) (errorMessage: string option) =
-        match errorMessage with
-        | Some message ->
-            sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {message}\r\n"))
-        | None -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} An unknown error has occured!\r\n"))
+    type Header = {
+        Status: StatusCode
+        Mime: string option
+        ErrorMessage: string option
+    }
 
     let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
         match statusCode with
         | TemporaryFailure
         | PermanentFailure
         | ClientCertificateRequired ->
-            writeErrorHeader sslStream statusCode errorMessage
+            sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {errorMessage.Value}\r\n"))
         | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime.Value}; \r\n"))
 
     let writeBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
@@ -76,7 +74,7 @@ module Server =
         match message with
         | _message ->
             try
-                let indexFilename = Path.Combine(configuration.staticDirectory, configuration.indexFile)
+                let indexFilename = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
 
                 match _message with
                 | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
@@ -130,8 +128,8 @@ module Server =
         let sslStream = new SslStream(client.GetStream(), false)
 
         sslStream.AuthenticateAsServer(serverCertificate, false, true)
-        sslStream.ReadTimeout <- configuration.requestTimeoutDuration
-        sslStream.WriteTimeout <- configuration.responseTimeoutDuration
+        sslStream.ReadTimeout <- configuration.RequestTimeoutDuration
+        sslStream.WriteTimeout <- configuration.ResponseTimeoutDuration
 
         logger.Information($"A client with IP address {getClientIPAddress client} connected..")
         let message = parseRequest sslStream
@@ -152,9 +150,9 @@ module Server =
 
     let runServer (configuration: ServerConfiguration) =
         try
-            let serverCertificate = new X509Certificate2(configuration.certificatePFXFile, configuration.certificatePassword)
-            let host = configuration.host
-            let port = configuration.port
+            let serverCertificate = new X509Certificate2(configuration.CertificatePFXFile, configuration.CertificatePassword)
+            let host = configuration.Host
+            let port = configuration.Port
             let hostInfo = Dns.GetHostEntry(host)
             let ipAddress = hostInfo.AddressList.[0]
             let listener = TcpListener(ipAddress, port)
