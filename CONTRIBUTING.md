@@ -27,10 +27,6 @@ your Operating System, as well as your `dotnet` (or `mono` \ .NET Framework), an
 reproduce the issue as well as the outcome you were expecting! All these details
 will help developers to fix any potential bugs.
 
-Ionide provide an easy way to gather all this information:
-
-Do `Ctrl+Shift+P > F#: Get info for diagnostics`, this will open a file with something like:
-
 > <!-- Please copy/paste this file content into a Github issue -->
 > ### Problem
 >
