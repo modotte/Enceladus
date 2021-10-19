@@ -42,18 +42,18 @@ module Server =
         | :? DirectoryNotFoundException as exn ->
             Error exn
             
-    let writeErrorHeader (sslStream: SslStream) (statusCode: StatusCode) (errorMessage: string option) =
-        match errorMessage with
-        | Some message ->
-            sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {message}\r\n"))
-        | None -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode PermanentFailure} An unknown error has occured!\r\n"))
+    type Header = {
+        Status: StatusCode
+        Mime: string option
+        ErrorMessage: string option
+    }
 
     let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
         match statusCode with
         | TemporaryFailure
         | PermanentFailure
         | ClientCertificateRequired ->
-            writeErrorHeader sslStream statusCode errorMessage
+            sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {errorMessage.Value}\r\n"))
         | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime.Value}; \r\n"))
 
     let writeBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
