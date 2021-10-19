@@ -59,6 +59,8 @@ There might be a little voice inside that tells you you're not ready; that you n
 
 I assure you, that's not the case.
 
+This project has some clear Contribution Guidelines and expectations that you can [read here](https://github.com/modotte/Enceladus/blob/master/CONTRIBUTING.md).
+
 The contribution guidelines outline the process that you'll need to follow to get a patch merged. By making expectations and process explicit, I hope it will make it easier for you to contribute.
 
 And you don't just have to write code. You can help out by writing documentation, tests, or even by giving feedback about this work.
