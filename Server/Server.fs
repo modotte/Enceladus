@@ -21,8 +21,6 @@ module Server =
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
         | UriFormatError of UriFormatException
-
-    
     type ServerConfiguration = {
         CertificatePFXFile: string
         CertificatePassword: string
