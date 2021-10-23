@@ -10,9 +10,7 @@ open System.IO
 open System.Text
 
 open Serilog
-
 open Enceladus.Core
-
 
 module Server =
     type ClientHandlingResult =
@@ -21,6 +19,7 @@ module Server =
         | PathDoesntExistError of DirectoryNotFoundException
         | UnauthorizedAccessError of UnauthorizedAccessException
         | UriFormatError of UriFormatException
+
     type ServerConfiguration = {
         CertificatePFXFile: string
         CertificatePassword: string
@@ -39,12 +38,6 @@ module Server =
         with
         | :? DirectoryNotFoundException as exn ->
             Error exn
-            
-    type Header = {
-        Status: StatusCode
-        Mime: string option
-        ErrorMessage: string option
-    }
 
     let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
         match statusCode with
@@ -169,3 +162,4 @@ module Server =
         with
         | :? CryptographicException as exn ->
             logger.Error($"SSL certificate validation error! Error: {exn.Message}")
+            Environment.Exit(1)

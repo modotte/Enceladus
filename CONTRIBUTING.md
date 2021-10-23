@@ -57,6 +57,8 @@ Please provide as much detail and context as possible.
 
 ## Pull requests
 
+The `dev` branch is the main and only branch which should be used for all pull requests.
+
 Good pull requests - patches, improvements, new features - are a fantastic
 help. They should remain focused in scope and avoid containing unrelated
 commits.

@@ -20,5 +20,6 @@ module Program =
         with
         | :? FileNotFoundException as exn ->
             logger.Error(exn.Message)
+            Environment.Exit(1)
         
         0
