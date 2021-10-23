@@ -74,7 +74,7 @@ please see LICENSE file.
 
 ## See also
 
-### Gemini ciients (aka browsers)
+### Gemini clients (aka browsers)
 
 - [Amfora](https://github.com/makeworld-the-better-one/amfora#amfora), the primary client that I use to test the server.
 - [Castor](https://git.sr.ht/~julienxx/castor)
