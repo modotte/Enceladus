@@ -13,12 +13,12 @@ open Serilog
 open Enceladus.Core
 
 module Server =
-    type ClientHandlingResult =
-        | Success of int * string
-        | FileDoesntExistError of string
-        | PathDoesntExistError of DirectoryNotFoundException
-        | UnauthorizedAccessError of UnauthorizedAccessException
-        | UriFormatError of UriFormatException
+    type ServerResponse =
+    | Success of int * string
+    | FileDoesntExistError of string
+    | PathDoesntExistError of DirectoryNotFoundException
+    | UnauthorizedAccessError of UnauthorizedAccessException
+    | UriFormatError of UriFormatException
 
     type ServerConfiguration = {
         CertificatePFXFile: string
@@ -31,15 +31,15 @@ module Server =
         StaticDirectory: string
     }
         
-    let getFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
+    let retrieveRequestedFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
         try
-            let path = Path.Combine(configuration.StaticDirectory, directoryPath)
-            Ok (Directory.GetFiles(path, $"{filename}.?*") |> Array.tryHead)
+            let fullPath = Path.Combine(configuration.StaticDirectory, directoryPath)
+            Ok (Directory.GetFiles(fullPath, $"{filename}.?*") |> Array.tryHead)
         with
         | :? DirectoryNotFoundException as exn ->
             Error exn
 
-    let writeHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
+    let createHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
         match statusCode with
         | TemporaryFailure
         | PermanentFailure
@@ -47,54 +47,59 @@ module Server =
             sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {errorMessage.Value}\r\n"))
         | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime.Value}; \r\n"))
 
-    let writeBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
+    let createBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
 
-    let nonIndexPageResponse (sslStream: SslStream) (file: string option) = 
-        match file with
+    let createOtherPageResponse (sslStream: SslStream) (filename: string option) = 
+        match filename with
         | Some _file ->
-            let mime = getMIMETypeFromExtension _file
+            let mime = extractMIMEFromExtension _file
             
-            writeHeaderResponse sslStream StatusCode.Success (Some mime) None
-            writeBodyResponse sslStream _file
+            createHeaderResponse sslStream StatusCode.Success (Some mime) None
+            createBodyResponse sslStream _file
             
             Success (getStatusCode StatusCode.Success, _file)
         | None ->
             let errorMessage = "File Not Found"
-            writeHeaderResponse sslStream PermanentFailure None (Some errorMessage)
+            createHeaderResponse sslStream PermanentFailure None (Some errorMessage)
+
             FileDoesntExistError errorMessage
 
-    let returnResponse (sslStream: SslStream) (configuration: ServerConfiguration) (message: string) =
+    let createIndexPageResponse  (sslStream: SslStream) (indexFilePath: string) =
+        createHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
+        createBodyResponse sslStream indexFilePath
+                    
+        Success (getStatusCode StatusCode.Success, indexFilePath)
+
+    let createServerResponse (sslStream: SslStream) (configuration: ServerConfiguration) (message: string) =
         match message with
         | _message ->
             try
-                let indexFilename = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
+                let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
 
                 match _message with
-                | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilename) ->
-                    writeHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
-                    writeBodyResponse sslStream indexFilename
-                    
-                    Success (getStatusCode StatusCode.Success, indexFilename)
+                | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilePath) ->
+                    createIndexPageResponse sslStream indexFilePath
                 | _ ->
-                    match getFile (Uri(_message).Segments |> getPathsFromUri) configuration with
+                    match retrieveRequestedFile (Uri(_message).Segments |> makePathsFromUri) configuration with
                     | Ok file ->
-                        nonIndexPageResponse sslStream file
+                        createOtherPageResponse sslStream file
                     | Error err ->
-                        writeHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
+                        createHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
+
                         PathDoesntExistError err
                     
             with
             | :? UnauthorizedAccessException as exn ->
-                writeHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
+                createHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
                 UnauthorizedAccessError exn
             | :? UriFormatException as exn ->
-                writeHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
+                createHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
                 UriFormatError exn
 
 
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
 
-    let parseRequest (sslStream: SslStream) =
+    let parseClientRequest (sslStream: SslStream) =
         let maxBufferLength = 4096
         let mutable buffer = Array.zeroCreate maxBufferLength
         let message = StringBuilder()
@@ -113,22 +118,22 @@ module Server =
 
         string message
 
-    let getClientIPAddress (client: TcpClient) =
+    let retrieveClientIPAddress (client: TcpClient) =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
         endpoint.Address
 
-    let handleClient (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
+    let listenClientRequest (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
 
         sslStream.AuthenticateAsServer(serverCertificate, false, true)
         sslStream.ReadTimeout <- configuration.RequestTimeoutDuration
         sslStream.WriteTimeout <- configuration.ResponseTimeoutDuration
 
-        logger.Information($"A client with IP address {getClientIPAddress client} connected..")
-        let message = parseRequest sslStream
+        logger.Information($"A client with IP address {retrieveClientIPAddress client} connected..")
+        let message = parseClientRequest sslStream
         logger.Information($"A client requested the URI: {message}")
 
-        match returnResponse sslStream configuration message with
+        match createServerResponse sslStream configuration message with
         | Success (code, page) ->
             logger.Information($"Successful response to {page} with {code} as status code")
         | FileDoesntExistError err -> logger.Error(err)        
@@ -154,7 +159,7 @@ module Server =
             let rec run state =
                 logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
                 let client = listener.AcceptTcpClient()
-                handleClient serverCertificate configuration client
+                listenClientRequest serverCertificate configuration client
 
                 (run state)
 
