@@ -21,15 +21,23 @@ module Core =
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
 
-    let getMIMETypeFromExtension (filename: string) =
+    let extractMIMEFromExtension (filename: string) =
         let extension = Path.GetExtension(filename)
+        
         match extension with
         | ".gmi" | ".gemini" -> "text/gemini"
         | _ -> MimeUtility.GetMimeMapping(filename)
 
-    let getPathsFromUri (uriSegments: string array) =
-        let withoutSlashes = uriSegments |> Array.map (fun s -> s.Trim('/'))        
-        let directoryPath = Path.Combine(withoutSlashes .[1 .. withoutSlashes.Length - 2])
-        let filename = withoutSlashes .[withoutSlashes.Length - 1]
+
+    let private removeSlashes (uriSegments: string array) =
+        uriSegments |> Array.map (fun s -> s.Trim('/'))
+
+    let private asDirectoryPath (uriSegments: string array) =
+        Path.Combine(uriSegments .[1 .. uriSegments.Length - 2])
+
+    let private asFilename (uriSegments: string array) = uriSegments .[uriSegments.Length - 1]
+
+    let makePathsFromUri (uriSegments: string array) =
+        let segments = removeSlashes uriSegments
            
-        (directoryPath, filename)
+        (asDirectoryPath segments, asFilename segments)
