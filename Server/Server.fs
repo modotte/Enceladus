@@ -71,30 +71,30 @@ module Server =
         Success (getStatusCode StatusCode.Success, indexFilePath)
 
     let createServerResponse (sslStream: SslStream) (configuration: ServerConfiguration) (message: string) =
-        match message with
-        | _message ->
-            try
-                let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
+        try
+            let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
 
-                match _message with
-                | _ when Uri(_message).LocalPath = "/" && File.Exists(indexFilePath) ->
-                    createIndexPageResponse sslStream indexFilePath
-                | _ ->
-                    match retrieveRequestedFile (Uri(_message).Segments |> makePathsFromUri) configuration with
-                    | Ok file ->
-                        createOtherPageResponse sslStream file
-                    | Error err ->
-                        createHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
+            match message with
+            | _ when Uri(message).LocalPath = "/" && File.Exists(indexFilePath) ->
+                createIndexPageResponse sslStream indexFilePath
+            | _ ->
+                match retrieveRequestedFile (Uri(message).Segments |> combinePathsFromUri) configuration with
+                | Ok file ->
+                    createOtherPageResponse sslStream file
+                | Error err ->
+                    createHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
 
-                        PathDoesntExistError err
-                    
-            with
-            | :? UnauthorizedAccessException as exn ->
-                createHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
-                UnauthorizedAccessError exn
-            | :? UriFormatException as exn ->
-                createHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
-                UriFormatError exn
+                    PathDoesntExistError err
+                
+        with
+        | :? UnauthorizedAccessException as exn ->
+            createHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
+
+            UnauthorizedAccessError exn
+        | :? UriFormatException as exn ->
+            createHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
+
+            UriFormatError exn
 
 
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
@@ -120,6 +120,7 @@ module Server =
 
     let retrieveClientIPAddress (client: TcpClient) =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
+        
         endpoint.Address
 
     let listenClientRequest (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =

@@ -5,7 +5,7 @@ open FsUnit
 open Enceladus.Core
 
 [<Test>]
-let GetMimeTypeFromExtensionTest () =
+let ExtractMimeFromExtensionTest () =
     extractMIMEFromExtension "malkin.html" |> should equal "text/html"
     extractMIMEFromExtension "M723Jhhs.jpg" |> should equal "image/jpeg"
     extractMIMEFromExtension "meow.gmi" |> should equal "text/gemini"
@@ -14,9 +14,9 @@ let GetMimeTypeFromExtensionTest () =
     extractMIMEFromExtension "8wjs0002j020hahsiowa.png" |> should equal "image/png"    
 
 [<Test>]
-let GetPathsFromUriTest () =
-    makePathsFromUri [|"/"; "/owo/"|] |> should equal ("", "owo")
-    makePathsFromUri [|"/"; "/about"; "/meow"|] |> should equal ("about", "meow")
-    makePathsFromUri [|"/"; "/rowo"|] |> should equal ("", "rowo")
-    makePathsFromUri [|"/"; "/subdir"; "/code"; "c"|] |> should equal ("subdir/code", "c")
+let CombinePathsFromUriTest () =
+    combinePathsFromUri [|"/"; "/owo/"|] |> should equal ("", "owo")
+    combinePathsFromUri [|"/"; "/about"; "/meow"|] |> should equal ("about", "meow")
+    combinePathsFromUri [|"/"; "/rowo"|] |> should equal ("", "rowo")
+    combinePathsFromUri [|"/"; "/subdir"; "/code"; "c"|] |> should equal ("subdir/code", "c")
 

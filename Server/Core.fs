@@ -37,7 +37,7 @@ module Core =
 
     let private asFilename (uriSegments: string array) = uriSegments .[uriSegments.Length - 1]
 
-    let makePathsFromUri (uriSegments: string array) =
+    let combinePathsFromUri (uriSegments: string array) =
         let segments = removeSlashes uriSegments
            
         (asDirectoryPath segments, asFilename segments)
