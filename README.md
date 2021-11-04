@@ -44,13 +44,22 @@ v0.1.0
 
 > NOTE: You can override server properties in `config.json`.
 
-1. Change current directory into ***Server*** directory.
-2. Generate SSL certificates first by running `sh generate_ssl.sh`.
-3. Change server credentials according to your setup in `config.json` file.
+1. Install dependencies
+   - Run:
+   ```sh
+   dotnet tool restore
+   dotnet paket restore
+   
+   # or if you're on Linux or Mac
+   bash ./build.sh
+   ```
+2. Change current directory into ***Server*** directory.
+3. Generate SSL certificates first by running `sh generate_ssl.sh`.
+4. Change server credentials according to your setup in `config.json` file.
     - You can override ***config.json*** location by assigning the absolute path using `ENCELADUS_CONFIG_FILE` environment variable.
     - Example: `ENCELADUS_CONFIG_FILE="$HOME/config.json"` on Linux systems.
-4. `dotnet run` or `./Enceladus` to start the server.
-5. Visit `gemini://localhost:1965/`, the homepage of the server using the client that you can find by scrolling to the bottom of this page.
+5. `dotnet run` or `./Enceladus` to start the server.
+6. Visit `gemini://localhost:1965/`, the homepage of the server using the client that you can find by scrolling to the bottom of this page.
 
 ## How to contribute
 Please read CONTRIBUTING.md first.
