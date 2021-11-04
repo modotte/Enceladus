@@ -1,0 +1,5 @@
+FSharp.Core
+FSharp.Json
+MimeMapping
+Serilog
+Serilog.Sinks.Console
