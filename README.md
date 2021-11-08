@@ -27,7 +27,7 @@ Experimental
 
 ### Version
 
-v0.1.0
+v0.1.1
 
 ## What's next?
 
