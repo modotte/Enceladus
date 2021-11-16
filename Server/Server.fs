@@ -13,13 +13,6 @@ open Serilog
 open Enceladus.Core
 
 module Server =
-    type ServerResponse =
-    | Success of int * string
-    | FileDoesntExistError of string
-    | PathDoesntExistError of DirectoryNotFoundException
-    | UnauthorizedAccessError of UnauthorizedAccessException
-    | UriFormatError of UriFormatException
-
     type ServerConfiguration = {
         CertificatePFXFile: string
         CertificatePassword: string
@@ -57,18 +50,18 @@ module Server =
             createHeaderResponse sslStream StatusCode.Success (Some mime) None
             createBodyResponse sslStream _file
             
-            Success (getStatusCode StatusCode.Success, _file)
+            Ok (getStatusCode StatusCode.Success, _file)
         | None ->
-            let errorMessage = "File Not Found"
-            createHeaderResponse sslStream PermanentFailure None (Some errorMessage)
+            let err = "File Not Found"
+            createHeaderResponse sslStream PermanentFailure None (Some err)
 
-            FileDoesntExistError errorMessage
+            Error err
 
     let createIndexPageResponse  (sslStream: SslStream) (indexFilePath: string) =
         createHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
         createBodyResponse sslStream indexFilePath
                     
-        Success (getStatusCode StatusCode.Success, indexFilePath)
+        Ok (getStatusCode StatusCode.Success, indexFilePath)
 
     let createServerResponse (sslStream: SslStream) (configuration: ServerConfiguration) (message: string) =
         try
@@ -84,17 +77,17 @@ module Server =
                 | Error err ->
                     createHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
 
-                    PathDoesntExistError err
+                    Error err.Message
                 
         with
         | :? UnauthorizedAccessException as exn ->
             createHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
 
-            UnauthorizedAccessError exn
+            Error exn.Message
         | :? UriFormatException as exn ->
             createHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
 
-            UriFormatError exn
+            Error exn.Message
 
 
     let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
@@ -122,7 +115,7 @@ module Server =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
         
         endpoint.Address
-
+        
     let listenClientRequest (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
 
@@ -135,12 +128,10 @@ module Server =
         logger.Information($"A client requested the URI: {message}")
 
         match createServerResponse sslStream configuration message with
-        | Success (code, page) ->
+        | Ok (code, page) ->
             logger.Information($"Successful response to {page} with {code} as status code")
-        | FileDoesntExistError err -> logger.Error(err)        
-        | PathDoesntExistError err -> logger.Error(err.Message)
-        | UnauthorizedAccessError err -> logger.Error(err.Message)
-        | UriFormatError err -> logger.Error(err.Message)
+        | Error err ->
+            logger.Error(err)
 
         sslStream.Close()
         client.Close()
