@@ -23,14 +23,6 @@ module Server =
         IndexFile: string
         StaticDirectory: string
     }
-    
-    type Response = {
-        Stream: SslStream
-        Status: StatusCode
-        Mime: string option
-        Filename: string option
-        ErrorMessage: string option
-    }
         
     let retrieveRequestedFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
         try

@@ -2,6 +2,7 @@ namespace Enceladus
 
 open System.IO
 
+open System.Net.Security
 open MimeMapping
 
 module Core =
@@ -20,6 +21,14 @@ module Core =
     | TemporaryFailure -> 40
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
+    
+    type Response = {
+        Stream: SslStream
+        Status: StatusCode
+        Mime: string option
+        Filename: string option
+        ErrorMessage: string option
+    }
 
     let extractMIMEFromExtension (filename: string) =
         let extension = Path.GetExtension(filename)
