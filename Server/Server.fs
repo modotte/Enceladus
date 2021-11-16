@@ -69,16 +69,16 @@ module Server =
         createBodyResponse response
         Ok (getStatusCode Success, response.Filename.Value)
 
-    let createServerResponse (stream: SslStream) (configuration: ServerConfiguration) (message: string) =
+    let createServerResponse (stream: SslStream) (configuration: ServerConfiguration) (fileData: string) =
         let response = { Stream = stream; Status = Success; Mime = None; Filename = None; ErrorMessage = None }
         try
             let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
 
-            match message with
-            | _ when Uri(message).LocalPath = "/" && File.Exists(indexFilePath) ->
+            match fileData with
+            | _ when Uri(fileData).LocalPath = "/" && File.Exists(indexFilePath) ->
                 createIndexPageResponse { response with Filename = Some indexFilePath }
             | _ ->
-                match retrieveRequestedFile (Uri(message).Segments |> combinePathsFromUri) configuration with
+                match retrieveRequestedFile (Uri(fileData).Segments |> combinePathsFromUri) configuration with
                 | Ok _file ->
                     createOtherPageResponse { response with Filename = _file }
                     
@@ -131,10 +131,10 @@ module Server =
         sslStream.WriteTimeout <- configuration.ResponseTimeoutDuration
 
         logger.Information($"A client with IP address {retrieveClientIPAddress client} connected..")
-        let message = parseClientRequest sslStream
-        logger.Information($"A client requested the URI: {message}")
+        let fileData = parseClientRequest sslStream
+        logger.Information($"A client requested the URI: {fileData}")
 
-        match createServerResponse sslStream configuration message with
+        match createServerResponse sslStream configuration fileData with
         | Ok (code, page) ->
             logger.Information($"Successful response to {page} with {code} as status code")
         | Error err ->
