@@ -23,6 +23,14 @@ module Server =
         IndexFile: string
         StaticDirectory: string
     }
+    
+    type Response = {
+        Stream: SslStream
+        Status: StatusCode
+        Mime: string option
+        Filename: string option
+        ErrorMessage: string option
+    }
         
     let retrieveRequestedFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
         try
@@ -31,62 +39,60 @@ module Server =
         with
         | :? DirectoryNotFoundException as exn ->
             Error exn
-
-    let createHeaderResponse (sslStream: SslStream) (statusCode: StatusCode) (mime: string option) (errorMessage: string option) =
-        match statusCode with
+            
+    let createHeaderResponse (response: Response) =
+        match response.Status with
         | TemporaryFailure
         | PermanentFailure
         | ClientCertificateRequired ->
-            sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {errorMessage.Value}\r\n"))
-        | _ -> sslStream.Write(Encoding.UTF8.GetBytes($"{getStatusCode statusCode} {mime.Value}; \r\n"))
+            response.Stream.Write(Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.ErrorMessage.Value}\r\n"))
+        | _ -> response.Stream.Write(Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.Mime.Value}; \r\n"))
 
-    let createBodyResponse (sslStream: SslStream) (filename: string) = sslStream.Write(File.ReadAllBytes(filename))
+    let createBodyResponse (response: Response) = response.Stream.Write(File.ReadAllBytes(response.Filename.Value))
 
-    let createOtherPageResponse (sslStream: SslStream) (filename: string option) = 
-        match filename with
+    let createOtherPageResponse (response: Response) = 
+        match response.Filename with
         | Some _file ->
             let mime = extractMIMEFromExtension _file
             
-            createHeaderResponse sslStream StatusCode.Success (Some mime) None
-            createBodyResponse sslStream _file
+            createHeaderResponse { response with Status = Success; Mime = Some mime; ErrorMessage = None }
+            createBodyResponse response
+            Ok (getStatusCode Success, _file)
             
-            Ok (getStatusCode StatusCode.Success, _file)
         | None ->
             let err = "File Not Found"
-            createHeaderResponse sslStream PermanentFailure None (Some err)
-
+            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some "File not found" }
             Error err
 
-    let createIndexPageResponse  (sslStream: SslStream) (indexFilePath: string) =
-        createHeaderResponse sslStream StatusCode.Success (Some "text/gemini") None
-        createBodyResponse sslStream indexFilePath
-                    
-        Ok (getStatusCode StatusCode.Success, indexFilePath)
+    let createIndexPageResponse (response: Response)  = 
+        createHeaderResponse { response with Status = Success; Mime = Some "text/gemini"; ErrorMessage = None }
+        createBodyResponse response
+        Ok (getStatusCode Success, response.Filename.Value)
 
-    let createServerResponse (sslStream: SslStream) (configuration: ServerConfiguration) (message: string) =
+    let createServerResponse (stream: SslStream) (configuration: ServerConfiguration) (message: string) =
+        let response = { Stream = stream; Status = Success; Mime = None; Filename = None; ErrorMessage = None }
         try
             let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
 
             match message with
             | _ when Uri(message).LocalPath = "/" && File.Exists(indexFilePath) ->
-                createIndexPageResponse sslStream indexFilePath
+                createIndexPageResponse { response with Filename = Some indexFilePath }
             | _ ->
                 match retrieveRequestedFile (Uri(message).Segments |> combinePathsFromUri) configuration with
-                | Ok file ->
-                    createOtherPageResponse sslStream file
+                | Ok _file ->
+                    createOtherPageResponse { response with Filename = _file }
+                    
                 | Error err ->
-                    createHeaderResponse sslStream PermanentFailure None (Some "Path Not Found")
-
+                    createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some "Path not found" }
                     Error err.Message
                 
         with
         | :? UnauthorizedAccessException as exn ->
-            createHeaderResponse sslStream PermanentFailure None (Some $"Forbidden access. {exn.Message}")
+            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some $"Forbidden access. {exn.Message}" }
 
             Error exn.Message
         | :? UriFormatException as exn ->
-            createHeaderResponse sslStream PermanentFailure None (Some $"URI error. {exn.Message}")
-
+            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some $"URI parsing error. {exn.Message}" }
             Error exn.Message
 
 
@@ -115,6 +121,7 @@ module Server =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
         
         endpoint.Address
+        
         
     let listenClientRequest (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
