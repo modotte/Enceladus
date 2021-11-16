@@ -2,16 +2,25 @@ namespace Enceladus
 
 open System.IO
 
+open System.Net.Security
 open MimeMapping
 
 module Core =
     type StatusCode =
-    | Input
-    | Success
-    | Redirect
-    | TemporaryFailure
-    | PermanentFailure
-    | ClientCertificateRequired
+        | Input
+        | Success
+        | Redirect
+        | TemporaryFailure
+        | PermanentFailure
+        | ClientCertificateRequired
+    
+    type Response = {
+        Stream: SslStream
+        Status: StatusCode
+        Mime: string option
+        Filename: string option
+        ErrorMessage: string option
+    }
         
     let getStatusCode = function
     | Input -> 10
@@ -20,7 +29,7 @@ module Core =
     | TemporaryFailure -> 40
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
-
+    
     let extractMIMEFromExtension (filename: string) =
         let extension = Path.GetExtension(filename)
         
@@ -28,14 +37,9 @@ module Core =
         | ".gmi" | ".gemini" -> "text/gemini"
         | _ -> MimeUtility.GetMimeMapping(filename)
 
-
-    let private removeSlashes (uriSegments: string array) =
-        uriSegments |> Array.map (fun s -> s.Trim('/'))
-
-    let private asDirectoryPath (uriSegments: string array) =
-        Path.Combine(uriSegments .[1 .. uriSegments.Length - 2])
-
-    let private asFilename (uriSegments: string array) = uriSegments .[uriSegments.Length - 1]
+    let private removeSlashes (uriSegments: string array) = uriSegments |> Array.map (fun s -> s.Trim('/'))
+    let private asDirectoryPath (uriSegments: string array) = Path.Combine(uriSegments.[1 .. uriSegments.Length - 2])
+    let private asFilename (uriSegments: string array) = uriSegments.[uriSegments.Length - 1]
 
     let combinePathsFromUri (uriSegments: string array) =
         let segments = removeSlashes uriSegments
