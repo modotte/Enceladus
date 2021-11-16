@@ -52,8 +52,8 @@ module Server =
             Ok (getStatusCode Success, _file)
             
         | None ->
-            let err = "File Not Found"
-            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some "File not found" }
+            let err = "File not found"
+            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some err }
             Error err
 
     let createIndexPageResponse response  = 
