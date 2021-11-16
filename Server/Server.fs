@@ -24,7 +24,7 @@ module Server =
         StaticDirectory: string
     }
         
-    let retrieveRequestedFile (directoryPath: string, filename: string) (configuration: ServerConfiguration) =
+    let retrieveRequestedFile (directoryPath, filename) configuration =
         try
             let fullPath = Path.Combine(configuration.StaticDirectory, directoryPath)
             Ok (Directory.GetFiles(fullPath, $"{filename}.?*") |> Array.tryHead)
@@ -32,7 +32,7 @@ module Server =
         | :? DirectoryNotFoundException as exn ->
             Error exn
             
-    let createHeaderResponse (response: Response) =
+    let createHeaderResponse response =
         match response.Status with
         | TemporaryFailure
         | PermanentFailure
@@ -40,9 +40,9 @@ module Server =
             response.Stream.Write(Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.ErrorMessage.Value}\r\n"))
         | _ -> response.Stream.Write(Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.Mime.Value}; \r\n"))
 
-    let createBodyResponse (response: Response) = response.Stream.Write(File.ReadAllBytes(response.Filename.Value))
+    let createBodyResponse response = response.Stream.Write(File.ReadAllBytes(response.Filename.Value))
 
-    let createOtherPageResponse (response: Response) = 
+    let createOtherPageResponse response = 
         match response.Filename with
         | Some _file ->
             let mime = extractMIMEFromExtension _file
@@ -56,12 +56,12 @@ module Server =
             createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some "File not found" }
             Error err
 
-    let createIndexPageResponse (response: Response)  = 
+    let createIndexPageResponse response  = 
         createHeaderResponse { response with Status = Success; Mime = Some "text/gemini"; ErrorMessage = None }
         createBodyResponse response
         Ok (getStatusCode Success, response.Filename.Value)
 
-    let createServerResponse (stream: SslStream) (configuration: ServerConfiguration) (parsedClientRequest: string) =
+    let createServerResponse stream configuration parsedClientRequest =
         let response = { Stream = stream; Status = Success; Mime = None; Filename = None; ErrorMessage = None }
         try
             let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
@@ -113,9 +113,8 @@ module Server =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
         
         endpoint.Address
-        
-        
-    let listenClientRequest (serverCertificate: X509Certificate2) (configuration: ServerConfiguration) (client: TcpClient) =
+       
+    let listenClientRequest serverCertificate configuration (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
 
         sslStream.AuthenticateAsServer(serverCertificate, false, true)
@@ -137,7 +136,7 @@ module Server =
 
         logger.Information("Closed last client connection..")
 
-    let runServer (configuration: ServerConfiguration) =
+    let runServer configuration =
         try
             let serverCertificate = new X509Certificate2(configuration.CertificatePFXFile, configuration.CertificatePassword)
             let host = configuration.Host

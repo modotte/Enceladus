@@ -7,12 +7,20 @@ open MimeMapping
 
 module Core =
     type StatusCode =
-    | Input
-    | Success
-    | Redirect
-    | TemporaryFailure
-    | PermanentFailure
-    | ClientCertificateRequired
+        | Input
+        | Success
+        | Redirect
+        | TemporaryFailure
+        | PermanentFailure
+        | ClientCertificateRequired
+    
+    type Response = {
+        Stream: SslStream
+        Status: StatusCode
+        Mime: string option
+        Filename: string option
+        ErrorMessage: string option
+    }
         
     let getStatusCode = function
     | Input -> 10
@@ -22,14 +30,6 @@ module Core =
     | PermanentFailure -> 50
     | ClientCertificateRequired -> 60
     
-    type Response = {
-        Stream: SslStream
-        Status: StatusCode
-        Mime: string option
-        Filename: string option
-        ErrorMessage: string option
-    }
-
     let extractMIMEFromExtension (filename: string) =
         let extension = Path.GetExtension(filename)
         
