@@ -1,5 +1,19 @@
 # Enceladus
 
+## Status
+
+> Please read this!!!
+
+The initial goal of this project was to explore the Gemini server protocol via .NET API.
+
+Now, the development of this project has been discontinued for saturn-g version in Rust, to
+investigate affine type checking on network resources and how it could help in preventing
+data race in this volatile and unreliable networking domain.
+A companion version may as well be developed in Haskell 9 + linear types for further
+research (exactly use resource one time).
+
+## What is Enceladus?
+
 A simple, synchronous Gemini protocol compliant server implementation in .NET and F#.
 
 ## What is Gemini network protocol?
