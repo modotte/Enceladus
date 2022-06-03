@@ -25,7 +25,7 @@ namespace Enceladus
         
         val getStatusCode: _arg1: StatusCode -> int
         
-        val extractMIMEFromExtension: filename: string -> string
+        val mimeFromExtension: filename: string -> string
         
         val private removeSlashes: uriSegments: string array -> string[]
         
@@ -51,10 +51,7 @@ namespace Enceladus
               StaticDirectory: string
             }
         
-        val retrieveRequestedFile:
-          directoryPath: string * filename: 'a
-          -> configuration: ServerConfiguration
-            -> Result<string option,System.IO.DirectoryNotFoundException>
+        val respond: data: 'a -> string
         
         val createHeaderResponse: response: Core.Response -> unit
         
@@ -76,7 +73,7 @@ namespace Enceladus
         val parseClientRequest:
           sslStream: System.Net.Security.SslStream -> string
         
-        val retrieveClientIPAddress:
+        val getClientIPAddress:
           client: System.Net.Sockets.TcpClient -> System.Net.IPAddress
         
         val listenClientRequest:

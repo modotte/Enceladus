@@ -25,16 +25,6 @@ module Server =
 
     let respond data = "${data}\rn"
 
-    let retrieveRequestedFile (directoryPath, filename) configuration =
-        try
-            let fullPath = Path.Combine(configuration.StaticDirectory, directoryPath)
-
-            Directory.GetFiles(fullPath, $"{filename}.?*")
-            |> Array.tryHead
-            |> Ok
-        with
-        | :? DirectoryNotFoundException as exn -> Error exn
-
     let createHeaderResponse response =
         match response.Status with
         | TemporaryFailure
@@ -96,31 +86,30 @@ module Server =
 
         try
             let indexFilePath =
-                Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
+                Path.Join(configuration.StaticDirectory, configuration.IndexFile)
 
-            match parsedClientRequest with
-            | _ when
+            if
+                // Make index file dynamically setable in config
                 Uri(parsedClientRequest).LocalPath = "/"
                 && File.Exists(indexFilePath)
-                ->
+            then
                 createIndexPageResponse { response with Filename = Some indexFilePath }
-            | _ ->
-                match
-                    retrieveRequestedFile
-                        (Uri(parsedClientRequest).Segments
-                         |> combinePathsFromUri)
-                        configuration
-                    with
-                | Ok _file -> createOtherPageResponse { response with Filename = _file }
+            else
+                let file =
+                    Path.Join(configuration.StaticDirectory, Uri(parsedClientRequest).LocalPath)
 
-                | Error err ->
+                printfn $"{file}"
+
+                if File.Exists(file) then
+                    createOtherPageResponse { response with Filename = Some file }
+                else
                     createHeaderResponse
                         { response with
                             Status = PermanentFailure
                             Mime = None
                             ErrorMessage = Some "Path not found" }
 
-                    Error err.Message
+                    Error "Path not found"
 
         with
         | :? UnauthorizedAccessException as exn ->
@@ -182,7 +171,7 @@ module Server =
 
         logger.Information($"A client with IP address {getClientIPAddress client} has connected..")
         let request = parseClientRequest sslStream
-        logger.Information($"A client requested the URI: {request}")
+        logger.Information($"Client {getClientIPAddress client} requesed {request}")
 
         match createServerResponse sslStream configuration request with
         | Ok (code, page) -> logger.Information($"Successful response to {page} with {code} as status code")
