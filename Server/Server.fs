@@ -13,82 +13,138 @@ open Serilog
 open Enceladus.Core
 
 module Server =
-    type ServerConfiguration = {
-        CertificatePFXFile: string
-        CertificatePassword: string
-        RequestTimeoutDuration: int
-        ResponseTimeoutDuration: int
-        Host: string
-        Port: int
-        IndexFile: string
-        StaticDirectory: string
-    }
-        
+    type ServerConfiguration =
+        { CertificatePFXFile: string
+          CertificatePassword: string
+          RequestTimeoutDuration: int
+          ResponseTimeoutDuration: int
+          Host: string
+          Port: int
+          IndexFile: string
+          StaticDirectory: string }
+
+    let respond data = "${data}\rn"
+
     let retrieveRequestedFile (directoryPath, filename) configuration =
         try
             let fullPath = Path.Combine(configuration.StaticDirectory, directoryPath)
-            Ok (Directory.GetFiles(fullPath, $"{filename}.?*") |> Array.tryHead)
+
+            Directory.GetFiles(fullPath, $"{filename}.?*")
+            |> Array.tryHead
+            |> Ok
         with
-        | :? DirectoryNotFoundException as exn ->
-            Error exn
-            
+        | :? DirectoryNotFoundException as exn -> Error exn
+
     let createHeaderResponse response =
         match response.Status with
         | TemporaryFailure
         | PermanentFailure
         | ClientCertificateRequired ->
-            response.Stream.Write(Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.ErrorMessage.Value}\r\n"))
-        | _ -> response.Stream.Write(Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.Mime.Value}; \r\n"))
+            response.Stream.Write(
+                Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.ErrorMessage.Value}\r\n")
+            )
+        | _ ->
+            response.Stream.Write(
+                Encoding.UTF8.GetBytes($"{getStatusCode response.Status} {response.Mime.Value}; \r\n")
+            )
 
-    let createBodyResponse response = response.Stream.Write(File.ReadAllBytes(response.Filename.Value))
+    let createBodyResponse response =
+        response.Stream.Write(File.ReadAllBytes(response.Filename.Value))
 
-    let createOtherPageResponse response = 
+    let createOtherPageResponse response =
         match response.Filename with
         | Some _file ->
-            let mime = extractMIMEFromExtension _file
-            
-            createHeaderResponse { response with Status = Success; Mime = Some mime; ErrorMessage = None }
+            let mime = mimeFromExtension _file
+
+            createHeaderResponse
+                { response with
+                    Status = Success
+                    Mime = Some mime
+                    ErrorMessage = None }
+
             createBodyResponse response
-            Ok (getStatusCode Success, _file)
-            
+            Ok(getStatusCode Success, _file)
+
         | None ->
             let err = "File not found"
-            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some err }
+
+            createHeaderResponse
+                { response with
+                    Status = PermanentFailure
+                    Mime = None
+                    ErrorMessage = Some err }
+
             Error err
 
-    let createIndexPageResponse response  = 
-        createHeaderResponse { response with Status = Success; Mime = Some "text/gemini"; ErrorMessage = None }
+    let createIndexPageResponse response =
+        createHeaderResponse
+            { response with
+                Status = Success
+                Mime = Some "text/gemini"
+                ErrorMessage = None }
+
         createBodyResponse response
-        Ok (getStatusCode Success, response.Filename.Value)
+        Ok(getStatusCode Success, response.Filename.Value)
 
     let createServerResponse stream configuration parsedClientRequest =
-        let response = { Stream = stream; Status = Success; Mime = None; Filename = None; ErrorMessage = None }
+        let response =
+            { Stream = stream
+              Status = Success
+              Mime = None
+              Filename = None
+              ErrorMessage = None }
+
         try
-            let indexFilePath = Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
+            let indexFilePath =
+                Path.Combine(configuration.StaticDirectory, configuration.IndexFile)
 
             match parsedClientRequest with
-            | _ when Uri(parsedClientRequest).LocalPath = "/" && File.Exists(indexFilePath) ->
+            | _ when
+                Uri(parsedClientRequest).LocalPath = "/"
+                && File.Exists(indexFilePath)
+                ->
                 createIndexPageResponse { response with Filename = Some indexFilePath }
             | _ ->
-                match retrieveRequestedFile (Uri(parsedClientRequest).Segments |> combinePathsFromUri) configuration with
-                | Ok _file ->
-                    createOtherPageResponse { response with Filename = _file }
-                    
+                match
+                    retrieveRequestedFile
+                        (Uri(parsedClientRequest).Segments
+                         |> combinePathsFromUri)
+                        configuration
+                    with
+                | Ok _file -> createOtherPageResponse { response with Filename = _file }
+
                 | Error err ->
-                    createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some "Path not found" }
+                    createHeaderResponse
+                        { response with
+                            Status = PermanentFailure
+                            Mime = None
+                            ErrorMessage = Some "Path not found" }
+
                     Error err.Message
-                
+
         with
         | :? UnauthorizedAccessException as exn ->
-            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some $"Forbidden access. {exn.Message}" }
+            createHeaderResponse
+                { response with
+                    Status = PermanentFailure
+                    Mime = None
+                    ErrorMessage = Some $"Forbidden access. {exn.Message}" }
 
             Error exn.Message
         | :? UriFormatException as exn ->
-            createHeaderResponse { response with Status = PermanentFailure; Mime = None; ErrorMessage = Some $"URI parsing error. {exn.Message}" }
+            createHeaderResponse
+                { response with
+                    Status = PermanentFailure
+                    Mime = None
+                    ErrorMessage = Some $"URI parsing error. {exn.Message}" }
+
             Error exn.Message
 
 
-    let logger = LoggerConfiguration().WriteTo.Console().CreateLogger()
+    let logger =
+        LoggerConfiguration()
+            .WriteTo.Console()
+            .CreateLogger()
 
     let parseClientRequest (sslStream: SslStream) =
         let maxBufferLength = 4096
@@ -100,7 +156,10 @@ module Server =
             bytes <- sslStream.Read(buffer, 0, buffer.Length)
             let decoder = Encoding.UTF8.GetDecoder()
             let mutable characters = Array.zeroCreate (decoder.GetCharCount(buffer, 0, bytes))
-            decoder.GetChars(buffer, 0, bytes, characters, 0) |> ignore
+
+            decoder.GetChars(buffer, 0, bytes, characters, 0)
+            |> ignore
+
             message.Append(characters) |> ignore
 
             match message.ToString().IndexOf("\r\n") with
@@ -109,11 +168,11 @@ module Server =
 
         string message
 
-    let retrieveClientIPAddress (client: TcpClient) =
+    let getClientIPAddress (client: TcpClient) =
         let endpoint = client.Client.RemoteEndPoint :?> IPEndPoint
-        
+
         endpoint.Address
-       
+
     let listenClientRequest serverCertificate configuration (client: TcpClient) =
         let sslStream = new SslStream(client.GetStream(), false)
 
@@ -121,15 +180,13 @@ module Server =
         sslStream.ReadTimeout <- configuration.RequestTimeoutDuration
         sslStream.WriteTimeout <- configuration.ResponseTimeoutDuration
 
-        logger.Information($"A client with IP address {retrieveClientIPAddress client} connected..")
+        logger.Information($"A client with IP address {getClientIPAddress client} has connected..")
         let request = parseClientRequest sslStream
         logger.Information($"A client requested the URI: {request}")
 
         match createServerResponse sslStream configuration request with
-        | Ok (code, page) ->
-            logger.Information($"Successful response to {page} with {code} as status code")
-        | Error err ->
-            logger.Error(err)
+        | Ok (code, page) -> logger.Information($"Successful response to {page} with {code} as status code")
+        | Error err -> logger.Error(err)
 
         sslStream.Close()
         client.Close()
@@ -138,7 +195,9 @@ module Server =
 
     let runServer configuration =
         try
-            let serverCertificate = new X509Certificate2(configuration.CertificatePFXFile, configuration.CertificatePassword)
+            let serverCertificate =
+                new X509Certificate2(configuration.CertificatePFXFile, configuration.CertificatePassword)
+
             let host = configuration.Host
             let port = configuration.Port
             let hostInfo = Dns.GetHostEntry(host)
@@ -146,14 +205,10 @@ module Server =
             let listener = TcpListener(ipAddress, port)
             listener.Start()
 
-            let rec run state =
+            while true do
                 logger.Information($"Waiting for a client to connect at gemini://{host}:{port}/")
                 let client = listener.AcceptTcpClient()
                 listenClientRequest serverCertificate configuration client
-
-                (run state)
-
-            (run true)
         with
         | :? CryptographicException as exn ->
             logger.Error($"SSL certificate validation error! Error: {exn.Message}")
