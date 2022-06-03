@@ -93,7 +93,6 @@ module Server =
                 Path.Join(configuration.StaticDirectory, configuration.IndexFile)
 
             if
-                // TODO: Make index file dynamically setable in config
                 Uri(parsedClientRequest).LocalPath = "/"
                 && File.Exists(indexFilePath)
             then
@@ -101,8 +100,6 @@ module Server =
             else
                 let file =
                     Path.Join(configuration.StaticDirectory, Uri(parsedClientRequest).LocalPath)
-
-                printfn $"{file}"
 
                 if File.Exists(file) then
                     createOtherPageResponse { response with Filename = Some file }
