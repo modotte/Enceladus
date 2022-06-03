@@ -8,13 +8,13 @@ open Enceladus.Server
 module Program =
     [<EntryPoint>]
     let main _ =
-        let configurationFile = Environment.GetEnvironmentVariable("ENCELADUS_CONFIG_FILE")
+        let configFile = Environment.GetEnvironmentVariable("ENCELADUS_CONFIG_FILE")
 
         try
-            if configurationFile |> String.IsNullOrEmpty then
+            if configFile |> String.IsNullOrEmpty then
                 File.ReadAllText("config.json")
             else
-                File.ReadAllText(configurationFile)
+                File.ReadAllText(configFile)
             |> Json.deserialize<ServerConfiguration>
             |> runServer
         with
@@ -22,5 +22,5 @@ module Program =
             logger.Error(exn.Message)
 
             Environment.Exit(1)
-        
+
         0

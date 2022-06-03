@@ -7,11 +7,11 @@ Welcome to Enceladus Gemini server!
 
 ## Pages to to visit
 
-=> gemini://localhost/about About Page
-=> gemini://localhost/subdir/firm Scribbles
-=> gemini://localhost/subdir/code/c C Example Code
+=> gemini://localhost/about.gmi About Page
+=> gemini://localhost/subdir/firm.gmi Scribbles
+=> gemini://localhost/subdir/code/c.gmi C Example Code
 
-=> gemini://localhost/enceladus Enceladus, The Saturn's Moon Picture
+=> gemini://localhost/enceladus.jpg Enceladus, The Saturn's Moon Picture
 
 ### External links
 => gemini://gemini.circumlunar.space Official Gemini Site

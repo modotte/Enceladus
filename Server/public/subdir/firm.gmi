@@ -4,4 +4,4 @@
 Many people love firmware, but what they actually do?
 
 
-=> gemini://localhost/about
+=> gemini://localhost/about.gmi
