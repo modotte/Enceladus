@@ -3,3 +3,4 @@ FSharp.Json
 MimeMapping
 Serilog
 Serilog.Sinks.Console
+FSharpPlus
