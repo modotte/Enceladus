@@ -26,18 +26,18 @@ namespace Enceladus
         val getStatusCode: _arg1: StatusCode -> int
         
         val mimeFromExtension: filename: string -> string
-        
-        val private removeSlashes: uriSegments: string array -> string[]
-        
-        val private asDirectoryPath: uriSegments: string array -> string
-        
-        val private asFilename: uriSegments: string array -> string
-        
-        val combinePathsFromUri: uriSegments: string array -> string * string
 
 namespace Enceladus
     
     module Server =
+        
+        val inline (<!>) :
+          x:  ^a -> f: ('c -> 'd) ->  ^b
+            when (FSharpPlus.Control.Map or  ^a or  ^b) :
+                   (static member Map:
+                      ( ^a * ('c -> 'd)) * FSharpPlus.Control.Map ->  ^b)
+        
+        val inline (|>!) : x: 'a -> f: ('a -> unit) -> 'a
         
         type ServerConfiguration =
             {
@@ -50,8 +50,6 @@ namespace Enceladus
               IndexFile: string
               StaticDirectory: string
             }
-        
-        val respond: data: 'a -> string
         
         val createHeaderResponse: response: Core.Response -> unit
         

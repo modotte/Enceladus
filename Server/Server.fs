@@ -9,10 +9,16 @@ open System.Net.Sockets
 open System.IO
 open System.Text
 
+open FSharpPlus
+
 open Serilog
 open Enceladus.Core
 
 module Server =
+
+    // Ideally, I would like to use <$>, but it seems it isn't allowed by the language anymore.
+    let inline (<!>) x f = map f x
+    let inline (|>!) x f = tap f x
     type ServerConfiguration =
         { CertificatePFXFile: string
           CertificatePassword: string
@@ -22,8 +28,6 @@ module Server =
           Port: int
           IndexFile: string
           StaticDirectory: string }
-
-    let respond data = "${data}\rn"
 
     let createHeaderResponse response =
         match response.Status with
@@ -89,7 +93,7 @@ module Server =
                 Path.Join(configuration.StaticDirectory, configuration.IndexFile)
 
             if
-                // Make index file dynamically setable in config
+                // TODO: Make index file dynamically setable in config
                 Uri(parsedClientRequest).LocalPath = "/"
                 && File.Exists(indexFilePath)
             then
