@@ -1,5 +1,11 @@
 # Enceladus
 
+## Status
+
+**Discontinued**
+
+***This project has been discontinued as I've found other things to work on and I don't really code F# as much as I used to anymore. However, Enceladus is still usable as a testing server or to serve as base prototype of a better and more featureful Gemini server on top of .NET core. Good luck!***
+
 ## What is Enceladus?
 
 A simple, synchronous Gemini protocol compliant server implementation in .NET and F#.
@@ -22,10 +28,6 @@ but currently, this server has been tested to run well on Linux system so far.
 - Linux: Supported
 - Windows: In the future
 - MacOSX: In the future
-
-## Status
-
-Experimental
 
 ### Version
 
